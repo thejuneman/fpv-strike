@@ -9,18 +9,19 @@ sites hunt you, enemy drones dodge and flare, and the house comes apart brick by
 > directed, play-tested and reviewed by me. It started as "rebuild this drone from a short clip,
 > add missiles, and make it much better."
 
-![Flying through the house](docs/screenshots/fly-through.jpg)
+![A rocket salvo breaching the house wall](docs/gifs/breach.gif)
 
 | | |
 |---|---|
-| ![Four-target seeker volley](docs/screenshots/multi-lock.jpg) | ![Top-attack kill](docs/screenshots/top-attack-kill.jpg) |
-| ![Rocket salvo](docs/screenshots/rocket-salvo.jpg) | ![FPV camera indoors](docs/screenshots/fpv-interior.jpg) |
-| ![A salvo breaching the wall](docs/screenshots/wall-breach.jpg) | ![Flares against an inbound SAM](docs/screenshots/flares.jpg) |
-| ![SAM site](docs/screenshots/sam-site.jpg) | ![Signal lost after a kamikaze run](docs/screenshots/signal-lost.jpg) |
-| ![Goggles OSD in FPV](docs/screenshots/fpv-osd.jpg) | ![Video breaking up at the edge of range](docs/screenshots/link-breakup.jpg) |
-| ![Missile cam](docs/screenshots/missile-cam.jpg) | ![Kill cam](docs/screenshots/kill-cam.jpg) |
-| ![Debug overlay drawing the guidance](docs/screenshots/debug-overlay.jpg) | ![Settings with the live rate curve](docs/screenshots/settings.jpg) |
-| ![Replay: chase cam](docs/screenshots/replay-chase.jpg) | ![Replay: tower cam](docs/screenshots/replay-tower.jpg) |
+| ![Low pass round the house](docs/gifs/flight.gif)<br><sub>A low pass in the chase cam</sub> | ![Four-target seeker volley](docs/gifs/volley.gif)<br><sub>Four locks, one trigger pull</sub> |
+| ![Flares pulling off a SAM](docs/gifs/sam.gif)<br><sub>A SAM launches; flares pull it off</sub> | ![Debug overlay drawing the guidance](docs/gifs/debug.gif)<br><sub>F2 draws the guidance maths</sub> |
+| ![Through the breach and out the window](docs/gifs/inside.gif)<br><sub>Through the breach and out the window</sub> | ![Kamikaze run cutting to static](docs/gifs/kamikaze.gif)<br><sub>Kamikaze: the feed cuts to static</sub> |
+
+| | |
+|---|---|
+| ![Goggles OSD in FPV](docs/screenshots/fpv-osd.jpg)<br><sub>Goggles OSD in FPV</sub> | ![Video breaking up at the edge of range](docs/screenshots/link-breakup.jpg)<br><sub>Video breaking up at the edge of range</sub> |
+| ![Missile cam](docs/screenshots/missile-cam.jpg)<br><sub>Missile cam</sub> | ![Kill cam](docs/screenshots/kill-cam.jpg)<br><sub>Slow-motion kill cam</sub> |
+| ![Replay: tower cam](docs/screenshots/replay-tower.jpg)<br><sub>Replay director: long-lens tower cam</sub> | ![Settings with the live rate curve](docs/screenshots/settings.jpg)<br><sub>Settings with the live rate curve</sub> |
 
 ## What's interesting in here
 
