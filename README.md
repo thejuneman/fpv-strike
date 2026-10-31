@@ -40,10 +40,11 @@ falls out of the physics.
 **Real missile guidance.** The seeker flies true proportional navigation: it accelerates across
 the line of sight in proportion to how fast that line is turning, so it leads moving targets
 instead of chasing their tail. It lofts slightly over ground targets so it doesn't catch the
-dirt, and falls back to a max-G turn when a target ends up behind it (where PN can't help).
+dirt, and falls back to a max-G turn when a target is more than 45° off the nose (where PN is
+too weak to turn it).
 
 **Top-attack profile.** The anti-armour missile soft-launches, climbs to the point a 60° dive
-onto the target begins, tips over one turn radius early, and hits the roof at 55–75° from
+onto the target begins, tips over one turn radius early, and hits the roof at 54–61° from
 150 to 1000 studs out.
 
 **Multi-target lock-on.** A seeker cone and line-of-sight raycasts build locks over time (with a
