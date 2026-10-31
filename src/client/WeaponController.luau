@@ -305,6 +305,7 @@ function WeaponController:update(dt: number)
 	local spec = Weapons.Specs[self.selected]
 	local trigger = not UserInputService:GetFocusedTextBox()
 		and not self.drone:GetAttribute("Down")
+		and not self.blocked -- the settings menu is open
 		and (
 			UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 			or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR1)

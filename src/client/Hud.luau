@@ -31,6 +31,7 @@ local HINTS = {
 	Acro = "MOUSE pitch/roll · A/D yaw · W/S throttle · SHIFT full",
 }
 local COMMON = " · LMB fire · 1-3 weapon · G flares · R detonate · T mode · F camera · V missile cam · BACKSPACE reset"
+	.. "\nP replay · M settings · F2 debug overlay"
 local STATIC_ROWS, STATIC_COLS = 48, 3
 
 local function make(className: string, props: { [string]: any }, parent: Instance?): any

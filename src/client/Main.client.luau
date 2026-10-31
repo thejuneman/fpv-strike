@@ -1,5 +1,6 @@
 -- Finds this player's drone, wires input, and runs one ordered update per frame:
--- targets -> video link -> flight controller -> weapons -> missiles -> camera -> visuals -> HUD.
+-- targets -> video link -> flight controller -> weapons -> missiles -> camera -> visuals -> HUD
+-- -> debug overlay -> replay recorder. While a replay plays, it runs instead.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -18,6 +19,9 @@ local MissileFx = require(script.Parent:WaitForChild("MissileFx"))
 local WeaponController = require(script.Parent:WaitForChild("WeaponController"))
 local VideoLink = require(script.Parent:WaitForChild("VideoLink"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
+local DebugOverlay = require(script.Parent:WaitForChild("DebugOverlay"))
+local Settings = require(script.Parent:WaitForChild("Settings"))
+local Replay = require(script.Parent:WaitForChild("Replay"))
 
 local player = Players.LocalPlayer
 
@@ -46,6 +50,12 @@ end)
 local weapons = WeaponController.new(drone, fx)
 local link = VideoLink.new(drone)
 local hud = Hud.new()
+local overlay = DebugOverlay.new(controller, fx, link)
+local replay = Replay.new(drone, controller, fx)
+local settings = Settings.new({
+	{ label = "Debug overlay (F2)", get = function() return overlay.enabled end, flip = function() overlay:toggle() end },
+	{ label = "Missile cam (V)", get = function() return rig.missileCam end, flip = function() rig:toggleMissileCam() end },
+})
 
 -- A missile-cam kill gets the kill cam: the camera hangs round the wreck in slow motion.
 weapons.onKill = function(_, at: Vector3)
@@ -71,6 +81,29 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		return
 	end
 	local code = input.KeyCode
+	if code == Enum.KeyCode.P or code == Enum.KeyCode.ButtonSelect then
+		if replay.playing then
+			replay:stop()
+		elseif replay:request() then
+			if overlay.enabled then
+				overlay:toggle() -- its lines would freeze over the replay
+			end
+			weapons:_say("REPLAY")
+		end
+		return
+	elseif replay.playing then
+		if code == Enum.KeyCode.C or code == Enum.KeyCode.ButtonY then
+			replay:nextShot()
+		end
+		return -- the replay has the controls
+	elseif code == Enum.KeyCode.M then
+		settings:toggle()
+		return
+	elseif code == Enum.KeyCode.F2 then
+		overlay:toggle()
+		return
+	end
+
 	if code == Enum.KeyCode.F or code == Enum.KeyCode.ButtonY then
 		rig:cycle()
 	elseif code == Enum.KeyCode.T or code == Enum.KeyCode.ButtonX then
@@ -145,6 +178,12 @@ if RunService:IsStudio() then
 			weapons:dropFlares()
 		elseif command == "camera" then
 			rig.mode = arg
+		elseif command == "replay" then
+			replay:request()
+		elseif command == "debug" then
+			overlay:toggle()
+		elseif command == "settings" then
+			settings:toggle()
 		end
 		local threatAt = weapons.threatAt
 		return {
@@ -160,6 +199,9 @@ if RunService:IsStudio() then
 			failsafe = link.failsafe,
 			watching = rig.watching,
 			killCam = rig.kill ~= nil,
+			replaying = replay.playing,
+			shot = replay.shot,
+			tape = #replay.frames,
 		}
 	end
 	hook.Parent = script
@@ -167,19 +209,35 @@ end
 
 -- Runs right after Roblox's default camera so ours wins.
 RunService:BindToRenderStep("Drone", Enum.RenderPriority.Camera.Value + 1, function(dt)
-	UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-	UserInputService.MouseIconEnabled = false
-	local mouse = mouseDelta
+	-- The settings menu frees the mouse; everything else flies with it locked.
+	UserInputService.MouseBehavior = if settings.open then Enum.MouseBehavior.Default else Enum.MouseBehavior.LockCenter
+	UserInputService.MouseIconEnabled = settings.open
+	local mouse = if settings.open then Vector2.zero else mouseDelta
 	mouseDelta = Vector2.zero
+
+	-- During a replay the drone holds position out of sight while the stand-ins fly the tape.
+	controller.locked = settings.open or replay.playing
+	if replay.playing then
+		link:update(dt)
+		controller:step(dt, Vector2.zero)
+		fx:update(dt)
+		replay:update(dt)
+		hud.gui.Enabled = not replay.playing
+		return
+	end
+	hud.gui.Enabled = true
 
 	TargetPaths.animate(workspace:GetServerTimeNow())
 	sweepDishes()
 	link:update(dt)
 	controller.failsafe = link.failsafe
 	controller:step(dt, if rig.mode == "Orbit" then Vector2.zero else mouse)
+	weapons.blocked = settings.open
 	weapons:update(dt)
 	fx:update(dt)
 	rig:update(dt, controller, mouse, fx.flights[weapons.lastGuided])
 	visuals:update(dt, controller, rig.mode == "Fpv" and not rig.watching)
 	hud:update(dt, controller, rig, weapons, link)
+	overlay:update(dt)
+	replay:record()
 end)

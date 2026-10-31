@@ -130,6 +130,7 @@ local function template(name: string): Model
 	templates[name] = model
 	return model
 end
+MissileFx.template = template -- the replay rebuilds missiles from the same airframes
 
 function MissileFx.new(onExplosion: (Vector3, number) -> ())
 	local self = setmetatable({}, MissileFx)
@@ -165,6 +166,7 @@ function MissileFx:spawn(id: string, name: string, origin: Vector3, velocity: Ve
 
 	local flame = model:FindFirstChild("Flame") :: BasePart
 	self.flights[id] = {
+		name = name,
 		spec = Weapons.Specs[name],
 		state = Missile.new(origin, velocity, direction),
 		model = model,

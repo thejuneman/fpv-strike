@@ -11,6 +11,9 @@ export type State = {
 	age: number,
 	terminal: boolean, -- top-attack: done climbing, now diving
 	loft: number?, -- top-attack: climb height, fixed from the range at first guidance
+	-- What guidance did last step, for the debug overlay
+	aim: Vector3?, -- the point it steered at
+	steer: Vector3?, -- the lateral acceleration it commanded
 }
 
 -- The fields of Weapons.Spec this module reads.
@@ -115,6 +118,7 @@ function Missile.step(s: State, spec: Spec, dt: number, targetPos: Vector3?, tar
 			end
 		end
 		accel += steer
+		s.aim, s.steer = aimPos, steer
 	end
 
 	s.vel += accel * dt

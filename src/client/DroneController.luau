@@ -148,6 +148,7 @@ function Controller:_aim(dt, mouse: Vector2, kb, pad, cf: CFrame, v: Vector3, ma
 
 	local speed = if self.boosting then cfg.BoostSpeed else cfg.CruiseSpeed
 	local wanted = move * speed + Vector3.new(0, vertical * cfg.ClimbSpeed, 0)
+	self.wanted = wanted -- for the debug overlay
 	-- Braking is gentler than accelerating so the drone carries momentum like a real quad.
 	local gain = if move.Magnitude > 0.05 or vertical ~= 0 then cfg.AccelGain else cfg.BrakeGain
 	local tilt = if self.boosting then cfg.BoostTilt else cfg.MaxTilt
@@ -212,6 +213,10 @@ function Controller:step(dt: number, mouse: Vector2)
 	local cf = root.CFrame
 	local v = root.AssemblyLinearVelocity
 	local kb, pad = readKeys(), readPad()
+	if self.locked then -- a menu or the replay has the inputs; hold position
+		kb = { forward = 0, side = 0, vertical = 0, yaw = 0, boost = false }
+		pad = { left = Vector2.zero, right = Vector2.zero, lt = 0, rt = 0, boost = false }
+	end
 	self.boosting = kb.boost or pad.boost
 
 	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -50, 0), self.ray)
@@ -235,6 +240,7 @@ function Controller:step(dt: number, mouse: Vector2)
 	local bat = Config.Battery
 	local maxThrust = Config.Gravity * Config.ThrustToWeight * (bat.WeakThrust + (1 - bat.WeakThrust) * self.battery)
 	local rates, throttle
+	self.wanted = nil
 	if self.mode == "Aim" then
 		rates, throttle = self:_aim(dt, mouse, kb, pad, cf, v, maxThrust)
 	elseif self.mode == "Angle" then

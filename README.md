@@ -19,6 +19,8 @@ sites hunt you, enemy drones dodge and flare, and the house comes apart brick by
 | ![SAM site](docs/screenshots/sam-site.jpg) | ![Signal lost after a kamikaze run](docs/screenshots/signal-lost.jpg) |
 | ![Goggles OSD in FPV](docs/screenshots/fpv-osd.jpg) | ![Video breaking up at the edge of range](docs/screenshots/link-breakup.jpg) |
 | ![Missile cam](docs/screenshots/missile-cam.jpg) | ![Kill cam](docs/screenshots/kill-cam.jpg) |
+| ![Debug overlay drawing the guidance](docs/screenshots/debug-overlay.jpg) | ![Settings with the live rate curve](docs/screenshots/settings.jpg) |
+| ![Replay: chase cam](docs/screenshots/replay-chase.jpg) | ![Replay: tower cam](docs/screenshots/replay-tower.jpg) |
 
 ## What's interesting in here
 
@@ -98,6 +100,24 @@ scores a kill, the camera drifts round the wreck with the colour drained while t
 in slow motion. Roblox can't slow the world itself, so the slow motion comes from the particles'
 own clock and the boom dropping in pitch.
 
+**Replays with an automatic director.** P plays back the last 20 seconds. The recorder samples
+your drone, every missile, burning flare and target 30 times a second and logs each explosion;
+playback rebuilds them as local stand-ins while the real world carries on. A director cuts
+between a chase cam, a long-lens tower cam planted on the ground (it zooms to keep the drone the
+same size in frame), a slow orbit, and a missile cam whenever something guided launches. Like a
+sports replay it skips to the action, starting a few seconds before the first launch, and if
+you press P with missiles still flying it waits for them to land.
+
+**A debug overlay that shows the maths.** F2 draws what the code is thinking, out in the world:
+each missile's velocity, its line of sight to the point it's steering at, and the lateral
+acceleration the guidance is commanding; the drone's thrust and the velocity the autopilot is
+chasing; target velocities, SAM radar ranges and lock lines. A readout covers the controller's
+commanded versus actual body rates, motor outputs, and the link.
+
+**Settings with a live rate curve.** M opens sliders for mouse sensitivity, camera FOVs and the
+Acro rates, plus a graph of the Betaflight "Actual" curve that redraws as you drag. Sliders write
+into the shared config the controller reads every frame, so changes apply instantly.
+
 **A guidance bug the tests caught.** The first SAM test failed: a missile launched straight up
 never reached a drone just 400 studs away. Tracing the flight showed it settling at the exact
 angle where the guidance hands over from a max-G turn to PN. Flying almost sideways to the
@@ -125,6 +145,9 @@ whose sound arrives at the speed of sound, trauma-based camera shake, and hit ma
 | Flight mode | T | X |
 | Camera (chase / FPV / orbit) | F | Y |
 | Missile cam | V | D-pad right |
+| Replay (C next camera) | P | Select |
+| Settings | M | |
+| Debug overlay | F2 | |
 | Reset to pad | Backspace | D-pad down |
 
 Hold fire for rockets. For the seeker and top-attack, keep a target near the reticle until its
@@ -141,7 +164,8 @@ src/server/   World (baseplate + brick-by-brick house), Targets, Combat (shot va
               flares and decoys, damage, breaking walls), Defenses (SAM radar and launches)
 src/client/   DroneController, CameraRig (incl. missile and kill cams), DroneVisuals,
               WeaponController (incl. radar warning), MissileFx (missiles, flares, explosions),
-              VideoLink (range, walls, failsafe), Hud, Osd (goggles display), Main
+              VideoLink (range, walls, failsafe), Hud, Osd (goggles display), Replay (recorder,
+              player, director), DebugOverlay, Settings, Main
 tests/        Lune tests that fly the real flight and guidance code
 ```
 
@@ -184,8 +208,8 @@ velocity, and exercise the ammo/reload rule.
 
 ## Roadmap
 
-- **Showcase tools:** a replay recorder with cinematic cameras, a debug overlay that draws the
-  guidance vectors, and a settings menu with a live rate-curve graph
+- **Saved settings:** keep each player's sliders in a DataStore
+- **Mobile controls:** on-screen sticks and buttons, so it plays on a phone
 - **A game loop:** timed strike missions with a score, so a session has a start, a goal and an
   end
 - **More threats:** an anti-aircraft gun firing tracers, for a threat flares can't stop
