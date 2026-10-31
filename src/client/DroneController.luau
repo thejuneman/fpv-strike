@@ -214,6 +214,12 @@ function Controller:step(dt: number, mouse: Vector2)
 	local cf = root.CFrame
 	local v = root.AssemblyLinearVelocity
 	local kb, pad = readKeys(), readPad()
+	local touch = self.touch -- on-screen controls on phones: the stick and UP/DOWN act as a gamepad's
+	if touch then
+		pad.left += touch.stick
+		pad.rt = math.max(pad.rt, if touch.up then 1 else 0)
+		pad.lt = math.max(pad.lt, if touch.down then 1 else 0)
+	end
 	if self.locked then -- a menu or the replay has the inputs; hold position
 		kb = { forward = 0, side = 0, vertical = 0, yaw = 0, boost = false }
 		pad = { left = Vector2.zero, right = Vector2.zero, lt = 0, rt = 0, boost = false }

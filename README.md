@@ -5,7 +5,7 @@ modes, and three weapons — unguided rockets, a lock-on missile flying proporti
 and a top-attack missile — with every hit decided by the server. The range fights back: SAM
 sites hunt you, enemy drones dodge and flare, and the house comes apart brick by brick.
 
-**[Play it on Roblox](https://www.roblox.com/games/131319634104165)** (PC and console)
+**[Play it on Roblox](https://www.roblox.com/games/131319634104165)** (PC, phone, tablet and console)
 
 > **Built with AI.** This project was written with Claude (Anthropic's AI) as the coding agent,
 > directed, play-tested and reviewed by me. It started as "rebuild this drone from a short clip,
@@ -146,24 +146,28 @@ New players get a controls card on joining; it clears when they launch, and H br
 
 ![The controls card](docs/screenshots/controls-card.jpg)
 
-| | Keyboard + mouse | Gamepad |
-|---|---|---|
-| Aim / steer | Mouse | Right stick |
-| Move | W A S D | Left stick |
-| Up / down | Space / Ctrl | RT / LT |
-| Boost | Shift | L1 |
-| Fire | Left mouse | R1 |
-| Weapon | 1 rockets · 2 seeker · 3 top-attack | D-pad up |
-| Flares | G | B |
-| Detonate (kamikaze) | R | L3 |
-| Flight mode | T | X |
-| Camera (chase / FPV / orbit) | F | Y |
-| Missile cam | V | D-pad right |
-| Replay (C next camera) | P | Select |
-| Settings | M | |
-| Debug overlay | F2 | |
-| Reset to pad | Backspace | D-pad down |
-| Controls card | H | |
+| | Keyboard + mouse | Gamepad | Touch |
+|---|---|---|---|
+| Aim / steer | Mouse | Right stick | Drag the right side |
+| Move | W A S D | Left stick | Stick (bottom left) |
+| Up / down | Space / Ctrl | RT / LT | UP / DOWN |
+| Boost | Shift | L1 | |
+| Fire | Left mouse | R1 | FIRE |
+| Weapon | 1 rockets · 2 seeker · 3 top-attack | D-pad up | WPN |
+| Flares | G | B | FLR |
+| Detonate (kamikaze) | R | L3 | BOOM |
+| Flight mode | T | X | |
+| Camera (chase / FPV / orbit) | F | Y | CAM |
+| Missile cam | V | D-pad right | |
+| Replay (C next camera) | P | Select | |
+| Settings | M | | |
+| Debug overlay | F2 | | |
+| Reset to pad | Backspace | D-pad down | RESET |
+| Controls card | H | | |
+
+On phones and tablets the stick and buttons appear on their own and Roblox's default touch
+controls step aside. They feed the same inputs as a gamepad and the mouse, so the flight code
+is identical on every device.
 
 Hold fire for rockets. For the seeker and top-attack, keep a target near the reticle until its
 diamond turns red, then fire. The SAM sites (amber markers) sit past the range; "RADAR LOCK"
@@ -182,7 +186,7 @@ src/server/   World (baseplate + brick-by-brick house), Targets, Combat (shot va
 src/client/   DroneController, CameraRig (incl. missile and kill cams), DroneVisuals,
               WeaponController (incl. radar warning), MissileFx (missiles, flares, explosions),
               VideoLink (range, walls, failsafe), Hud, Osd (goggles display), Replay (recorder,
-              player, director), DebugOverlay, Settings, Main
+              player, director), DebugOverlay, Settings, TouchControls, Main
 tests/        Lune tests that fly the real flight and guidance code
 ```
 
@@ -242,7 +246,6 @@ stylua --check src tests
 ## Roadmap
 
 - **Saved settings:** keep each player's sliders in a DataStore
-- **Mobile controls:** on-screen sticks and buttons, so it plays on a phone
 - **A game loop:** timed strike missions with a score, so a session has a start, a goal and an
   end
 - **More threats:** an anti-aircraft gun firing tracers, for a threat flares can't stop

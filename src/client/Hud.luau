@@ -443,6 +443,8 @@ function Hud.new()
 
 	self.osd = Osd.new(gui)
 	self.panels = { top, title, tele, arms, self.hints }
+	self.tele = tele
+	self.arms = arms
 	self.gui = gui
 	self.markers = {}
 	return self
@@ -450,6 +452,18 @@ end
 
 function Hud:toggleHelp()
 	self.help.Visible = not self.help.Visible
+end
+
+-- Phones: the stick and buttons take the bottom corners, so the telemetry and key hints go and
+-- the weapons panel moves up under the title. The keyboard help card is no use either.
+function Hud:setTouch()
+	self.touch = true
+	self.panels = { self.panels[1], self.panels[2], self.arms }
+	self.tele.Visible = false
+	self.hints.Visible = false
+	self.help.Visible = false
+	self.arms.AnchorPoint = Vector2.new(1, 0)
+	self.arms.Position = UDim2.new(1, -16, 0, 70)
 end
 
 function Hud:signalLost(seconds: number)
@@ -696,16 +710,19 @@ function Hud:update(dt: number, ctrl, rig, weapons, link)
 	self.hints.Text = HINTS[ctrl.mode] .. COMMON
 
 	if link.failsafe then
-		self.prompt.Text = "FAILSAFE · OUT OF RANGE · BACKSPACE TO RESET"
+		self.prompt.Text = "FAILSAFE · OUT OF RANGE · " .. if self.touch then "TAP RESET" else "BACKSPACE TO RESET"
 		self.prompt.TextColor3 = WARN
 	elseif not ctrl.armed then
-		self.prompt.Text = if ctrl.mode == "Acro" then "W  TO SPOOL UP" else "SPACE  TO LAUNCH"
+		self.prompt.Text = if self.touch
+			then "HOLD UP  TO LAUNCH"
+			elseif ctrl.mode == "Acro" then "W  TO SPOOL UP"
+			else "SPACE  TO LAUNCH"
 		self.prompt.TextColor3 = ACCENT
 	elseif ctrl.crashTimer > 0 then
 		self.prompt.Text = "IMPACT"
 		self.prompt.TextColor3 = WARN
 	elseif ctrl.battery < 0.2 then
-		self.prompt.Text = "LOW BATTERY · BACKSPACE TO SWAP"
+		self.prompt.Text = "LOW BATTERY · " .. if self.touch then "TAP RESET" else "BACKSPACE TO SWAP"
 		self.prompt.TextColor3 = WARN
 	else
 		self.prompt.Text = ""

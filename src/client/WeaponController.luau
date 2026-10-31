@@ -310,8 +310,12 @@ function WeaponController:update(dt: number)
 		and not self.drone:GetAttribute("Down")
 		and not self.blocked -- the settings menu is open
 		and (
-			UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-			or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR1)
+						-- On phones a tap can read as a mouse press, so there only the FIRE button fires.
+(
+				if self.touch
+					then self.touch.fire
+					else UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+			) or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR1)
 		)
 	if spec.Guidance == "None" then
 		if trigger then

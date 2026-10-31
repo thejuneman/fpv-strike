@@ -22,6 +22,7 @@ local Hud = require(script.Parent:WaitForChild("Hud"))
 local DebugOverlay = require(script.Parent:WaitForChild("DebugOverlay"))
 local Settings = require(script.Parent:WaitForChild("Settings"))
 local Replay = require(script.Parent:WaitForChild("Replay"))
+local TouchControls = require(script.Parent:WaitForChild("TouchControls"))
 
 local player = Players.LocalPlayer
 
@@ -81,9 +82,40 @@ weapons.onKill = function(_, at: Vector3)
 	end
 end
 
+local function detonate()
+	if weapons:detonate() then
+		-- The feed dies with the drone, like a real FPV strike. Motors cut until it's confirmed.
+		hud:signalLost(Config.DownTime)
+		controller.armed = false
+	end
+end
+
+local touch = if TouchControls.wanted()
+	then TouchControls.new({
+		weapon = function()
+			weapons:cycle()
+		end,
+		flares = function()
+			weapons:dropFlares()
+		end,
+		camera = function()
+			rig:cycle()
+		end,
+		detonate = detonate,
+		reset = function()
+			controller:reset()
+		end,
+	})
+	else nil
+if touch then
+	controller.touch = touch
+	weapons.touch = touch
+	hud:setTouch()
+end
+
 local mouseDelta = Vector2.zero
 UserInputService.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
+	if input.UserInputType == Enum.UserInputType.MouseMovement and not touch then
 		mouseDelta += Vector2.new(input.Delta.X, input.Delta.Y)
 	elseif input.UserInputType == Enum.UserInputType.MouseWheel then
 		rig:zoom(-input.Position.Z)
@@ -138,11 +170,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	elseif code == Enum.KeyCode.V or code == Enum.KeyCode.DPadRight then
 		weapons:_say(if rig:toggleMissileCam() then "MISSILE CAM ON" else "MISSILE CAM OFF")
 	elseif code == Enum.KeyCode.R or code == Enum.KeyCode.ButtonL3 then
-		if weapons:detonate() then
-			-- The feed dies with the drone, like a real FPV strike. Motors cut until it's confirmed.
-			hud:signalLost(Config.DownTime)
-			controller.armed = false
-		end
+		detonate()
 	end
 end)
 
@@ -229,8 +257,15 @@ end
 -- Runs right after Roblox's default camera so ours wins.
 RunService:BindToRenderStep("Drone", Enum.RenderPriority.Camera.Value + 1, function(dt)
 	-- The settings menu frees the mouse; everything else flies with it locked.
-	UserInputService.MouseBehavior = if settings.open then Enum.MouseBehavior.Default else Enum.MouseBehavior.LockCenter
+	-- On phones there is no mouse to lock; aim comes from dragging the right side of the screen.
+	UserInputService.MouseBehavior = if settings.open or touch
+		then Enum.MouseBehavior.Default
+		else Enum.MouseBehavior.LockCenter
 	UserInputService.MouseIconEnabled = settings.open
+	if touch then
+		mouseDelta += touch:takeLook()
+		touch:setVisible(not replay.playing)
+	end
 	local mouse = if settings.open then Vector2.zero else mouseDelta
 	mouseDelta = Vector2.zero
 
