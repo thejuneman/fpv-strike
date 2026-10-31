@@ -17,6 +17,8 @@ sites hunt you, enemy drones dodge and flare, and the house comes apart brick by
 | ![Rocket salvo](docs/screenshots/rocket-salvo.jpg) | ![FPV camera indoors](docs/screenshots/fpv-interior.jpg) |
 | ![A salvo breaching the wall](docs/screenshots/wall-breach.jpg) | ![Flares against an inbound SAM](docs/screenshots/flares.jpg) |
 | ![SAM site](docs/screenshots/sam-site.jpg) | ![Signal lost after a kamikaze run](docs/screenshots/signal-lost.jpg) |
+| ![Goggles OSD in FPV](docs/screenshots/fpv-osd.jpg) | ![Video breaking up at the edge of range](docs/screenshots/link-breakup.jpg) |
+| ![Missile cam](docs/screenshots/missile-cam.jpg) | ![Kill cam](docs/screenshots/kill-cam.jpg) |
 
 ## What's interesting in here
 
@@ -80,6 +82,22 @@ later. Rockets chip holes, a seeker opens a doorway, and a kamikaze run takes ou
 warhead where you saw the drone (checked against its own view), and the feed cuts to analog
 static, just as a real FPV strike looks from the goggles.
 
+**Goggles OSD.** In FPV the panels give way to a Betaflight-style on-screen display in a pixel
+font: pack voltage, flight mode and timer, link quality, speed, altitude, amps and mAh used, a
+home arrow pointing back to the pilot, weapon and flare counts, an artificial horizon worked
+out from the camera's own orientation, and blinking warnings in the middle.
+
+**A radio link with real range.** Link quality falls with distance from the pilot standing
+behind the pad, and drops further when a wall sits between them, so flying through the house
+costs signal. As it falls, the picture tears into analog noise while the OSD stays crisp on top,
+as it does in real goggles. When the link is gone the quad fails safe: the motors cut and it
+drops.
+
+**Missile cam and kill cam.** V rides your newest seeker or top-attack all the way in. If it
+scores a kill, the camera drifts round the wreck with the colour drained while the blast plays
+in slow motion. Roblox can't slow the world itself, so the slow motion comes from the particles'
+own clock and the boom dropping in pitch.
+
 **A guidance bug the tests caught.** The first SAM test failed: a missile launched straight up
 never reached a drone just 400 studs away. Tracing the flight showed it settling at the exact
 angle where the guidance hands over from a max-G turn to PN. Flying almost sideways to the
@@ -90,7 +108,7 @@ top-attack still pass every test.
 
 **Feel.** Spinning props that blur into discs, per-motor speed from a motor mix, motor pitch that
 follows RPM, speed-scaled trails and FOV, spring-damped cameras with wall avoidance, explosions
-whose sound arrives at the speed of sound, and trauma-based camera shake.
+whose sound arrives at the speed of sound, trauma-based camera shake, and hit markers.
 
 ## Controls
 
@@ -106,6 +124,7 @@ whose sound arrives at the speed of sound, and trauma-based camera shake.
 | Detonate (kamikaze) | R | L3 |
 | Flight mode | T | X |
 | Camera (chase / FPV / orbit) | F | Y |
+| Missile cam | V | D-pad right |
 | Reset to pad | Backspace | D-pad down |
 
 Hold fire for rockets. For the seeker and top-attack, keep a target near the reticle until its
@@ -120,8 +139,9 @@ src/shared/   Config, FlightModel (pure flight math), Missile (pure guidance), F
               DroneBuilder (the drone, built from code), Smooth
 src/server/   World (baseplate + brick-by-brick house), Targets, Combat (shot validation, missiles,
               flares and decoys, damage, breaking walls), Defenses (SAM radar and launches)
-src/client/   DroneController, CameraRig, DroneVisuals, WeaponController (incl. radar warning),
-              MissileFx (missiles, flares, explosions), Hud, Main
+src/client/   DroneController, CameraRig (incl. missile and kill cams), DroneVisuals,
+              WeaponController (incl. radar warning), MissileFx (missiles, flares, explosions),
+              VideoLink (range, walls, failsafe), Hud, Osd (goggles display), Main
 tests/        Lune tests that fly the real flight and guidance code
 ```
 
@@ -164,8 +184,6 @@ velocity, and exercise the ammo/reload rule.
 
 ## Roadmap
 
-- **Juice pass:** goggles-style OSD, analog video noise that builds as you fly out of range,
-  a missile cam, and slow motion on a kill
 - **Showcase tools:** a replay recorder with cinematic cameras, a debug overlay that draws the
   guidance vectors, and a settings menu with a live rate-curve graph
 - **A game loop:** timed strike missions with a score, so a session has a start, a goal and an

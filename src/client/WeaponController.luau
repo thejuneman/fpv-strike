@@ -39,6 +39,9 @@ function WeaponController.new(drone: Model, fx)
 	self.slots.Flares = Weapons.newSlot(Weapons.Flares, now)
 	self.salvos = 0
 	self.threat, self.threatAt = nil, nil -- "RADAR" or "MISSILE", and where it's coming from
+	self.lastGuided = nil -- id of your newest seeker or top-attack, for the missile cam
+	self.hitAt, self.hitKill = -math.huge, false -- for the hit marker
+	self.onKill = nil :: ((id: string, at: Vector3) -> ())?
 	self.locks = {} -- confirmed locks, in the order they were made
 	self.candidate = nil -- target currently being locked
 	self.progress = 0
@@ -260,8 +263,12 @@ function WeaponController:_fire(name: string, target: Model?, now: number)
 	local origin = launchers[self.side].WorldPosition
 	local direction = self:_launchDirection(spec, origin)
 	self.shots += 1
+	local id = `{player.UserId}:{self.shots}`
 	local velocity = self.root.AssemblyLinearVelocity + direction * spec.LaunchSpeed
-	self.fx:spawn(`{player.UserId}:{self.shots}`, name, origin, velocity, direction, target, true)
+	self.fx:spawn(id, name, origin, velocity, direction, target, true)
+	if spec.Guidance ~= "None" then
+		self.lastGuided = id
+	end
 	fireRemote:FireServer(name, self.shots, origin, direction, target)
 end
 
@@ -346,6 +353,10 @@ function WeaponController:_onServer(kind: string, ...)
 			self:_say(if result == "kill" then "TARGET DESTROYED" else "HIT")
 			self.beep.PlaybackSpeed = if result == "kill" then 2.2 else 1.9
 			self.beep:Play()
+			self.hitAt, self.hitKill = os.clock(), result == "kill"
+			if result == "kill" and self.onKill then
+				self.onKill(id, at)
+			end
 		end
 	elseif kind == "cancel" then
 		local id, name, ammo = ...

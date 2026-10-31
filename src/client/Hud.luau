@@ -1,6 +1,7 @@
 -- Flight and weapons HUD: mode, telemetry, aim reticle, flight-path marker, weapon panel,
--- seeker circle and lock diamonds, the radar warning with its threat arrow, the damage
--- vignette and the "signal lost" static. The full goggles-style OSD comes in milestone 4.
+-- seeker circle and lock diamonds, hit markers, the radar warning with its threat arrow, the
+-- damage vignette, and analog video breakup (a weak link, or "signal lost"). In FPV the panels
+-- give way to the goggles OSD.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -9,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Weapons = require(Shared:WaitForChild("Weapons"))
+local Osd = require(script.Parent:WaitForChild("Osd"))
 
 local Hud = {}
 Hud.__index = Hud
@@ -28,7 +30,7 @@ local HINTS = {
 	Angle = "WASD tilt · MOUSE or Q/E yaw · SPACE/CTRL climb",
 	Acro = "MOUSE pitch/roll · A/D yaw · W/S throttle · SHIFT full",
 }
-local COMMON = " · LMB fire · 1-3 weapon · G flares · R detonate · T mode · F camera · BACKSPACE reset"
+local COMMON = " · LMB fire · 1-3 weapon · G flares · R detonate · T mode · F camera · V missile cam · BACKSPACE reset"
 local STATIC_ROWS, STATIC_COLS = 48, 3
 
 local function make(className: string, props: { [string]: any }, parent: Instance?): any
@@ -117,11 +119,12 @@ function Hud.new()
 	self.prompt = text(gui, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.84),
-		Size = UDim2.fromOffset(420, 30),
+		Size = UDim2.fromOffset(620, 30),
 		TextXAlignment = Enum.TextXAlignment.Center,
 		FontFace = BOLD,
 		TextSize = 18,
 		TextStrokeTransparency = 0.5,
+		ZIndex = 60, -- readable over video breakup
 	})
 
 	-- Where the mouse is aiming
@@ -264,6 +267,34 @@ function Hud.new()
 	})
 	self.staticFrom, self.staticUntil = 0, 0
 
+	-- Hit marker: four ticks round the centre, white for a hit, red and bigger for a kill.
+	self.hit = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Visible = false }, gui)
+	self.hitTicks = {}
+	for i = 0, 3 do
+		local angle = math.rad(45 + 90 * i)
+		table.insert(self.hitTicks, make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5 + math.cos(angle) * 0.5, 0, 0.5 + math.sin(angle) * 0.5, 0),
+			Size = UDim2.fromOffset(12, 3),
+			Rotation = math.deg(angle),
+			BorderSizePixel = 0,
+		}, self.hit))
+	end
+
+	self.camLabel = text(gui, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 20),
+		Size = UDim2.fromOffset(300, 24),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = BOLD,
+		TextSize = 18,
+		TextStrokeTransparency = 0.4,
+		Text = "● MISSILE CAM",
+		TextColor3 = WARN,
+	})
+
+	self.osd = Osd.new(gui)
+	self.panels = { top, title, tele, arms, self.hints }
 	self.gui = gui
 	self.markers = {}
 	return self
@@ -281,43 +312,60 @@ function Hud:damaged()
 	self.hurtAt = os.clock()
 end
 
-function Hud:_updateEffects(weapons)
+function Hud:_updateEffects(weapons, link, fpv: boolean)
 	local now = os.clock()
 	local hurt = math.clamp((now - self.hurtAt) / 0.6, 0, 1)
 	for _, bar in self.hurtBars do
 		bar.BackgroundTransparency = 0.35 + 0.65 * hurt
 	end
 
-	self.static.Visible = now < self.staticUntil
+	-- Video breakup: total while the drone is lost, otherwise as much as the link is weak. A
+	-- weak link drops random rows of noise over the picture; a lost one buries it.
+	local lost = if now < self.staticUntil then math.clamp((self.staticUntil - now) / 0.5, 0, 1) else 0
+	local noise = math.max(lost, link:noise())
+	self.static.Visible = noise > 0.01
 	if self.static.Visible then
-		-- Hard cut in, fade out over the last half second.
-		local fade = math.clamp((self.staticUntil - now) / 0.5, 0, 1)
 		local roll = (now * 3) % 1
 		local i = 0
 		for row = 1, STATIC_ROWS do
 			-- Each row is a few blocks of random width, the whole row torn sideways a little.
 			local x = math.random(-8, 0) / 100
+			local shown = lost > 0 or math.random() < noise * 0.7
 			for col = 1, STATIC_COLS do
 				i += 1
 				local band = self.bands[i]
 				local width = if col == STATIC_COLS then 1.1 - x else math.random(5, 50) / 100
-				local grey = math.random(25, 215)
+				local grey = math.random(10, 240)
 				band.Position = UDim2.fromScale(x, ((row - 1) / STATIC_ROWS + roll) % 1)
 				band.Size = UDim2.new(width, 0, 1 / STATIC_ROWS, 1)
 				band.BackgroundColor3 = Color3.fromRGB(grey, grey, math.min(grey + math.random(0, 25), 255))
-				band.BackgroundTransparency = 1 - fade * math.random(40, 95) / 100
+				-- Even light breakup gets some solid tears, or it just reads as haze.
+				band.BackgroundTransparency = if shown then 1 - (0.3 + 0.7 * noise) * math.random(40, 95) / 100 else 1
 				x += width
 			end
 		end
-		self.static.BackgroundTransparency = 1 - fade
-		self.lost.TextTransparency = 1 - fade
-		self.lost.TextStrokeTransparency = 1 - fade * 0.8
+		self.static.BackgroundTransparency = 1 - lost
+		self.lost.Visible = lost > 0
+		self.lost.TextTransparency = 1 - lost
+		self.lost.TextStrokeTransparency = 1 - lost * 0.8
 		self.lost.TextColor3 = if math.floor(now * 4) % 2 == 0 then WHITE else WARN
+	end
+
+	local age = now - weapons.hitAt
+	local life = if weapons.hitKill then 0.5 else 0.3
+	self.hit.Visible = age < life
+	if self.hit.Visible then
+		local size = (if weapons.hitKill then 34 else 26) + age * 30
+		self.hit.Size = UDim2.fromOffset(size, size)
+		for _, tick in self.hitTicks do
+			tick.BackgroundColor3 = if weapons.hitKill then LOCK else WHITE
+			tick.BackgroundTransparency = age / life
+		end
 	end
 
 	local cam = workspace.CurrentCamera
 	local threat = weapons.threat
-	self.warning.Visible = threat ~= nil
+	self.warning.Visible = threat ~= nil and not fpv -- the OSD has its own
 	self.arrow.Visible = threat ~= nil and weapons.threatAt ~= nil
 	if threat == "MISSILE" then
 		local blink = math.floor(now * 8) % 2 == 0
@@ -392,7 +440,7 @@ function Hud:_updateWeapons(weapons, rig)
 	end
 
 	local spec = Weapons.Specs[weapons.selected]
-	self.seeker.Visible = spec.MaxLocks > 0 and rig.mode ~= "Orbit"
+	self.seeker.Visible = spec.MaxLocks > 0 and rig.mode ~= "Orbit" and not rig.watching
 	if self.seeker.Visible then
 		local radius = math.tan(spec.SeekerCone) / math.tan(math.rad(cam.FieldOfView) / 2) * cam.ViewportSize.Y / 2
 		self.seeker.Size = UDim2.fromOffset(radius * 2, radius * 2)
@@ -449,9 +497,18 @@ local function project(gui: GuiObject, point: Vector3)
 	gui.Position = UDim2.fromOffset(screen.X, screen.Y)
 end
 
-function Hud:update(ctrl, rig, weapons)
+function Hud:update(dt: number, ctrl, rig, weapons, link)
+	local fpv = rig.mode == "Fpv" and not rig.watching
 	self:_updateWeapons(weapons, rig)
-	self:_updateEffects(weapons)
+	self:_updateEffects(weapons, link, fpv)
+	self.osd:update(dt, ctrl, rig, weapons, link)
+	if os.clock() < self.staticUntil then
+		self.osd.root.Visible = false -- no video at all: the OSD goes with it
+	end
+	for _, p in self.panels do
+		p.Visible = not fpv
+	end
+	self.camLabel.Visible = rig.watching and math.floor(os.clock() * 2) % 2 == 0
 	local bat = Config.Battery
 	local volts = bat.EmptyVolts + (bat.FullVolts - bat.EmptyVolts) * ctrl.battery - bat.SagVolts * ctrl.throttle
 	local v = ctrl.root.AssemblyLinearVelocity
@@ -474,7 +531,10 @@ function Hud:update(ctrl, rig, weapons)
 	self.throttleBar.Size = UDim2.fromScale(ctrl.throttle, 1)
 	self.hints.Text = HINTS[ctrl.mode] .. COMMON
 
-	if not ctrl.armed then
+	if link.failsafe then
+		self.prompt.Text = "FAILSAFE · OUT OF RANGE · BACKSPACE TO RESET"
+		self.prompt.TextColor3 = WARN
+	elseif not ctrl.armed then
 		self.prompt.Text = if ctrl.mode == "Acro" then "W  TO SPOOL UP" else "SPACE  TO LAUNCH"
 		self.prompt.TextColor3 = ACCENT
 	elseif ctrl.crashTimer > 0 then
@@ -488,12 +548,12 @@ function Hud:update(ctrl, rig, weapons)
 	end
 
 	local eye = workspace.CurrentCamera.CFrame.Position
-	if ctrl.mode == "Aim" and rig.mode ~= "Orbit" then
+	if ctrl.mode == "Aim" and rig.mode ~= "Orbit" and not rig.watching then
 		project(self.reticle, eye + ctrl:aimDirection() * 1000)
 	else
 		self.reticle.Visible = false
 	end
-	if v.Magnitude > 8 and rig.mode ~= "Orbit" then
+	if v.Magnitude > 8 and rig.mode ~= "Orbit" and not rig.watching then
 		project(self.flightPath, eye + v.Unit * 1000)
 	else
 		self.flightPath.Visible = false

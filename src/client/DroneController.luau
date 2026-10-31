@@ -74,6 +74,7 @@ function Controller.new(drone: Model)
 	self.force = root:WaitForChild("Thrust") :: VectorForce
 	self.rate = root:WaitForChild("Rate") :: AngularVelocity
 	self.mode = "Aim"
+	self.failsafe = false -- set from the video link each frame
 	self.motors = { 0, 0, 0, 0 } -- per-motor output 0..1, read by the visuals
 	self.ray = RaycastParams.new()
 	self.ray.FilterType = Enum.RaycastFilterType.Exclude
@@ -216,7 +217,11 @@ function Controller:step(dt: number, mouse: Vector2)
 	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -50, 0), self.ray)
 	self.height = if hit then hit.Distance - root.Size.Y / 2 else 50
 
-	local down = self.drone:GetAttribute("Down") -- lost; the server is readying a fresh one
+	-- Lost (the server is readying a fresh drone), or out of radio range: no arming.
+	local down = self.drone:GetAttribute("Down") or self.failsafe
+	if self.failsafe then
+		self.armed = false -- failsafe: the motors cut and the quad drops
+	end
 	if not self.armed and not down and (kb.vertical > 0 or kb.forward > 0 or pad.rt > 0.2 or pad.left.Magnitude > 0.3) then
 		self.armed = true
 	end

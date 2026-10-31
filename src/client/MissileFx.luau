@@ -367,8 +367,25 @@ function MissileFx:cancel(id: string)
 	end
 end
 
+-- Kill cam: slow the blasts around `at` to a crawl and drop their boom by most of an octave.
+-- Roblox can't slow the world itself, but particles have their own clock.
+function MissileFx:slowMotion(at: Vector3)
+	for _, holder in self.folder:GetChildren() do
+		if holder:GetAttribute("Blast") and (holder.Position - at).Magnitude < 30 then
+			for _, effect in holder:GetDescendants() do
+				if effect:IsA("ParticleEmitter") then
+					effect.TimeScale = 0.25
+				elseif effect:IsA("Sound") then
+					effect.PlaybackSpeed *= 0.55
+				end
+			end
+		end
+	end
+end
+
 function MissileFx:explode(at: Vector3, radius: number)
 	local holder = part({ Size = Vector3.one, Transparency = 1, CFrame = CFrame.new(at) })
+	holder:SetAttribute("Blast", true)
 	holder.Parent = self.folder
 
 	local flash = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * radius * 0.5, CFrame = CFrame.new(at), Color = Color3.fromRGB(255, 214, 150), Material = Enum.Material.Neon, Transparency = 0.1 })

@@ -1,7 +1,10 @@
--- Chase, FPV and orbit cameras. Every bit of smoothing is framerate independent.
+-- Chase, FPV and orbit cameras, plus the missile cam (rides your latest guided missile in) and
+-- its kill cam (drifts round the blast in slow motion). Every bit of smoothing is framerate
+-- independent.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -11,6 +14,10 @@ local Smooth = require(Shared:WaitForChild("Smooth"))
 local CameraRig = {}
 CameraRig.__index = CameraRig
 CameraRig.Modes = { "Chase", "Fpv", "Orbit" }
+
+local HOLD = 1 -- seconds to watch the blast after the missile goes off
+local KILL_TIME = 2.4 -- kill cam length
+local KILL_ORBIT = 0.35 -- rad/s the kill cam drifts round the wreck
 
 function CameraRig.new(drone: Model)
 	local self = setmetatable({}, CameraRig)
@@ -32,12 +39,71 @@ function CameraRig.new(drone: Model)
 	self.orbitDistance = 9
 	self.ray = RaycastParams.new()
 	self.ray.FilterType = Enum.RaycastFilterType.Exclude
+
+	self.missileCam = false
+	self.watching = false -- the camera is on a missile (or its blast), not the drone
+	self.watchCF = CFrame.identity
+	self.watchUntil = 0
+	self.kill = nil :: { at: Vector3, from: Vector3, start: number }?
+	-- Local-only colour grade for the kill cam.
+	self.grade = Instance.new("ColorCorrectionEffect")
+	self.grade.Parent = self.camera
 	return self
 end
 
 function CameraRig:cycle()
 	local i = table.find(CameraRig.Modes, self.mode) or 1
 	self.mode = CameraRig.Modes[i % #CameraRig.Modes + 1]
+end
+
+function CameraRig:toggleMissileCam(): boolean
+	self.missileCam = not self.missileCam
+	return self.missileCam
+end
+
+-- Your missile cam missile scored a kill: hang round the wreck, drained of colour, while the
+-- blast plays out slowly.
+function CameraRig:killCam(at: Vector3)
+	if not self.watching then
+		return
+	end
+	self.kill = { at = at, from = self.camera.CFrame.Position, start = os.clock() }
+	self.watchUntil = os.clock() + KILL_TIME
+	self.grade.Saturation, self.grade.Contrast, self.grade.TintColor = -0.6, 0.2, Color3.fromRGB(255, 236, 214)
+	TweenService:Create(self.grade, TweenInfo.new(KILL_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Saturation = 0,
+		Contrast = 0,
+		TintColor = Color3.new(1, 1, 1),
+	}):Play()
+end
+
+-- Missile cam: returns true while it owns the camera. `shot` is the MissileFx flight to ride.
+function CameraRig:_watch(dt: number, shot): boolean
+	local now = os.clock()
+	if self.missileCam and shot and not shot.done then
+		local s = shot.state
+		local wanted = CFrame.lookAt(s.pos - s.forward * 9 + Vector3.new(0, 2, 0), s.pos + s.forward * 30)
+		self.watchCF = if self.watching then self.watchCF:Lerp(wanted, Smooth.alpha(18, dt)) else wanted
+		self.watching = true
+		self.watchUntil = math.max(self.watchUntil, now + HOLD)
+	end
+	if not self.watching or now > self.watchUntil then
+		self.watching, self.kill = false, nil
+		return false
+	end
+	local kill = self.kill
+	if kill then
+		-- Drift round the wreck from where the missile cam was, pulled back to take it all in.
+		local away = kill.from - kill.at
+		local flat = Vector3.new(away.X, 0, away.Z)
+		local dir = if flat.Magnitude > 1e-3 then flat.Unit else Vector3.zAxis
+		local angle = (now - kill.start) * KILL_ORBIT
+		local eye = kill.at + CFrame.Angles(0, angle, 0):VectorToWorldSpace(dir * 30) + Vector3.new(0, 9, 0)
+		self.camera.CFrame = CFrame.lookAt(eye, kill.at)
+	else
+		self.camera.CFrame = self.watchCF
+	end
+	return true
 end
 
 -- Trauma-based shake: hits add trauma, shake grows with its square and decays on its own.
@@ -64,7 +130,7 @@ function CameraRig:_unblocked(from: Vector3, to: Vector3): Vector3
 	return to
 end
 
-function CameraRig:update(dt: number, ctrl, mouse: Vector2)
+function CameraRig:update(dt: number, ctrl, mouse: Vector2, shot)
 	local cam = self.camera
 	local cfg = Config.Camera
 	local cf = self.root.CFrame
@@ -72,7 +138,9 @@ function CameraRig:update(dt: number, ctrl, mouse: Vector2)
 	cam.CameraType = Enum.CameraType.Scriptable
 
 	local targetFov
-	if self.mode == "Fpv" then
+	if self:_watch(dt, shot) then
+		targetFov = cfg.MissileFov
+	elseif self.mode == "Fpv" then
 		-- Rigid like a real FPV camera, plus a faint high-frequency buzz from the motors.
 		local t = os.clock() * 37
 		local buzz = 0.0035 * ctrl.throttle

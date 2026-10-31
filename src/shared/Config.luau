@@ -67,6 +67,14 @@ local Config = {
 		MaxFov = 100,
 		FpvFov = 92,
 		OrbitFov = 55,
+		MissileFov = 60,
+	},
+
+	-- Radio link from the pilot to the drone
+	Link = {
+		FullRange = 550, -- studs from the pilot with a perfect link
+		MaxRange = 1400, -- link gone: the quad fails safe
+		WallLoss = 0.35, -- quality lost with a wall between pilot and drone
 	},
 
 	Audio = {

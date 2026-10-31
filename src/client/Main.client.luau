@@ -1,5 +1,5 @@
 -- Finds this player's drone, wires input, and runs one ordered update per frame:
--- targets -> flight controller -> weapons -> missiles -> camera -> visuals -> HUD.
+-- targets -> video link -> flight controller -> weapons -> missiles -> camera -> visuals -> HUD.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -16,6 +16,7 @@ local CameraRig = require(script.Parent:WaitForChild("CameraRig"))
 local DroneVisuals = require(script.Parent:WaitForChild("DroneVisuals"))
 local MissileFx = require(script.Parent:WaitForChild("MissileFx"))
 local WeaponController = require(script.Parent:WaitForChild("WeaponController"))
+local VideoLink = require(script.Parent:WaitForChild("VideoLink"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 
 local player = Players.LocalPlayer
@@ -43,7 +44,16 @@ local fx = MissileFx.new(function(at: Vector3, radius: number)
 	rig:shake(math.clamp(1 - distance / (radius * 18), 0, 1) * 0.7)
 end)
 local weapons = WeaponController.new(drone, fx)
+local link = VideoLink.new(drone)
 local hud = Hud.new()
+
+-- A missile-cam kill gets the kill cam: the camera hangs round the wreck in slow motion.
+weapons.onKill = function(_, at: Vector3)
+	if rig.watching then
+		rig:killCam(at)
+		fx:slowMotion(at)
+	end
+end
 
 local mouseDelta = Vector2.zero
 UserInputService.InputChanged:Connect(function(input)
@@ -73,6 +83,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		weapons:cycle()
 	elseif code == Enum.KeyCode.G or code == Enum.KeyCode.ButtonB then
 		weapons:dropFlares()
+	elseif code == Enum.KeyCode.V or code == Enum.KeyCode.DPadRight then
+		weapons:_say(if rig:toggleMissileCam() then "MISSILE CAM ON" else "MISSILE CAM OFF")
 	elseif code == Enum.KeyCode.R or code == Enum.KeyCode.ButtonL3 then
 		if weapons:detonate() then
 			-- The feed dies with the drone, like a real FPV strike. Motors cut until it's confirmed.
@@ -131,6 +143,8 @@ if RunService:IsStudio() then
 			weapons:select(arg)
 		elseif command == "flares" then
 			weapons:dropFlares()
+		elseif command == "camera" then
+			rig.mode = arg
 		end
 		local threatAt = weapons.threatAt
 		return {
@@ -142,6 +156,10 @@ if RunService:IsStudio() then
 			threat = weapons.threat,
 			threatRange = threatAt and (threatAt - drone.PrimaryPart.Position).Magnitude,
 			health = drone:GetAttribute("Health"),
+			link = link.quality,
+			failsafe = link.failsafe,
+			watching = rig.watching,
+			killCam = rig.kill ~= nil,
 		}
 	end
 	hook.Parent = script
@@ -156,10 +174,12 @@ RunService:BindToRenderStep("Drone", Enum.RenderPriority.Camera.Value + 1, funct
 
 	TargetPaths.animate(workspace:GetServerTimeNow())
 	sweepDishes()
+	link:update(dt)
+	controller.failsafe = link.failsafe
 	controller:step(dt, if rig.mode == "Orbit" then Vector2.zero else mouse)
 	weapons:update(dt)
 	fx:update(dt)
-	rig:update(dt, controller, mouse)
-	visuals:update(dt, controller, rig.mode == "Fpv")
-	hud:update(controller, rig, weapons)
+	rig:update(dt, controller, mouse, fx.flights[weapons.lastGuided])
+	visuals:update(dt, controller, rig.mode == "Fpv" and not rig.watching)
+	hud:update(dt, controller, rig, weapons, link)
 end)
