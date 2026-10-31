@@ -12,6 +12,7 @@ local function load(path: string)
 end
 local Weapons = load("src/shared/Weapons.luau")
 local Missile = load("src/shared/Missile.luau")
+local Flares = load("src/shared/Flares.luau")
 
 local DT = 1 / 60 -- server Heartbeat
 
@@ -80,6 +81,54 @@ for _ = 1, 60 do
 end
 assert(math.abs(s.pos.X) < 1e-6 and s.pos.Y > -15 and s.pos.Z < -300, `rocket path {s.pos}`)
 print(string.format("rockets: %.0f studs in 1 s, %.1f studs drop", -s.pos.Z, -s.pos.Y))
+
+-- SAM: cold-launched straight up, it still runs down a drone circling 400 studs away
+local sam = Weapons.Specs.SAM
+local up = (Vector3.new(0, 1, 0) + Vector3.new(0, 0, -0.2)).Unit
+local function circling(time)
+	local a = time * 0.6 -- 90 studs/s on a 150-stud circle
+	return Vector3.new(math.cos(a) * 150, 60, -400 + math.sin(a) * 150)
+end
+hit, t = fly(sam, Vector3.new(0, 3, 0), up, circling)
+assert(hit, "SAM catches a circling drone")
+print(string.format("sam: circling drone hit after %.2f s", t))
+
+-- Flares: once the SAM is 450 studs out the drone pops one and the missile is pulled onto it.
+-- It must go off on the flare, out of blast range of the drone.
+local drone = function(time)
+	return Vector3.new(-300 + 120 * time, 60, -500)
+end
+s = Missile.new(Vector3.new(0, 3, 0), up * sam.LaunchSpeed, up)
+local flare, boomAt, droneAt = nil, nil, nil
+for i = 1, math.floor(sam.Lifetime / DT) do
+	local time = i * DT
+	if not flare and (drone(time) - s.pos).Magnitude < 450 then
+		flare = { origin = drone(time), velocity = Vector3.new(84, -15, 20), born = time }
+	end
+	local aimPos = if flare then Flares.at(flare, time) else drone(time)
+	local aimVel = if flare then Flares.velocity(flare, time) else Vector3.new(120, 0, 0)
+	local before = s.pos
+	Missile.step(s, sam, DT, aimPos, aimVel)
+	if (Missile.closestOnSegment(before, s.pos, aimPos) - aimPos).Magnitude < sam.Fuse then
+		boomAt, droneAt = s.pos, drone(time + DT)
+		break
+	end
+end
+assert(flare and boomAt, "decoyed SAM goes off on the flare")
+local spared = (boomAt - droneAt).Magnitude
+assert(spared > sam.BlastRadius, `the drone is clear of the blast (got {spared} studs)`)
+print(string.format("flares: SAM pulled off, burst %.0f studs from the drone", spared))
+
+-- Flare path: the closed form agrees with its own velocity and settles at terminal sink rate
+local f = { origin = Vector3.zero, velocity = Vector3.new(60, 10, -30), born = 0 }
+for _, time in { 0.3, 1, 2.5 } do
+	-- Vector3 is 32-bit, so difference over a step big enough to rise above float noise.
+	local numeric = (Flares.at(f, time + 0.01) - Flares.at(f, time - 0.01)) / 0.02
+	assert((numeric - Flares.velocity(f, time)).Magnitude < 0.05, `flare velocity matches its path at {time} s`)
+end
+local settled = Flares.velocity(f, 20)
+assert(math.abs(settled.X) < 1e-3 and settled.Y < -20 and settled.Y > -30, `flare sinks steadily (got {settled})`)
+print(string.format("flares: path consistent, sinks at %.1f studs/s", -settled.Y))
 
 -- Ammo: four shots, empty, then one round back after a reload
 local slot = Weapons.newSlot(seeker, 0)

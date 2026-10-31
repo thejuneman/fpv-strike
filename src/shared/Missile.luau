@@ -32,6 +32,10 @@ type Spec = {
 
 -- Keeps guidance steering while the motor is still spinning up and closing speed is tiny.
 local MIN_CLOSING = 60
+-- Past this angle off the nose PN is too weak to turn the missile (it flies almost sideways to
+-- the target, so closing speed is tiny); pull max G toward the target instead. Set lower, a
+-- vertically launched SAM hovers at the switchover, orbiting its target until it hits the ground.
+local TURN_OVER = math.cos(math.rad(45))
 
 function Missile.new(origin: Vector3, velocity: Vector3, forward: Vector3): State
 	return { pos = origin, vel = velocity, forward = forward.Unit, age = 0, terminal = false }
@@ -98,7 +102,7 @@ function Missile.step(s: State, spec: Spec, dt: number, targetPos: Vector3?, tar
 
 		local los = (aimPos - s.pos).Unit
 		local steer
-		if los:Dot(s.forward) < 0.2 then
+		if los:Dot(s.forward) < TURN_OVER then
 			-- Target far off the nose: PN can't turn a missile around, so pull hard toward it.
 			local across = los - s.forward * los:Dot(s.forward)
 			steer = if across.Magnitude > 1e-3 then across.Unit * spec.MaxG else Vector3.zero

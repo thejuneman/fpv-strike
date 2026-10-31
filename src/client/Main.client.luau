@@ -1,12 +1,14 @@
 -- Finds this player's drone, wires input, and runs one ordered update per frame:
 -- targets -> flight controller -> weapons -> missiles -> camera -> visuals -> HUD.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local Weapons = require(Shared:WaitForChild("Weapons"))
 local TargetPaths = require(Shared:WaitForChild("TargetPaths"))
 local Controller = require(script.Parent:WaitForChild("DroneController"))
@@ -69,8 +71,52 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		weapons:select(Weapons.Order[WEAPON_KEYS[code]])
 	elseif code == Enum.KeyCode.DPadUp then
 		weapons:cycle()
+	elseif code == Enum.KeyCode.G or code == Enum.KeyCode.ButtonB then
+		weapons:dropFlares()
+	elseif code == Enum.KeyCode.R or code == Enum.KeyCode.ButtonL3 then
+		if weapons:detonate() then
+			-- The feed dies with the drone, like a real FPV strike. Motors cut until it's confirmed.
+			hud:signalLost(Config.DownTime)
+			controller.armed = false
+		end
 	end
 end)
+
+-- Shot down or detonated: static over the feed, and a fresh drone waits on the pad.
+drone:GetAttributeChangedSignal("Down"):Connect(function()
+	if drone:GetAttribute("Down") then
+		hud:signalLost(Config.DownTime)
+		controller:reset()
+		weapons:_clearLocks()
+	end
+end)
+
+local lastHealth = drone:GetAttribute("Health")
+drone:GetAttributeChangedSignal("Health"):Connect(function()
+	local health = drone:GetAttribute("Health")
+	if health < lastHealth and health > 0 then
+		hud:damaged()
+		rig:shake(0.9)
+	end
+	lastHealth = health
+end)
+
+-- Radar dishes sweep, and stop to stare at you while they hold a lock (cosmetic, local only).
+local function sweepDishes()
+	local sweep = os.clock() * 2.5
+	for _, site in CollectionService:GetTagged("Target") do
+		local root = site.PrimaryPart
+		local spin = root and root:FindFirstChild("DishSpin")
+		if spin and site:GetAttribute("Health") > 0 then
+			local yaw = sweep
+			if site:GetAttribute("Tracking") == player.UserId then
+				local rel = root.CFrame:PointToObjectSpace(drone.PrimaryPart.Position)
+				yaw = math.atan2(-rel.Z, rel.X)
+			end
+			spin.Transform = CFrame.Angles(0, yaw, 0)
+		end
+	end
+end
 
 -- Studio-only hook so automated playtests can aim and read state without a mouse.
 if RunService:IsStudio() then
@@ -83,13 +129,19 @@ if RunService:IsStudio() then
 			controller.aimPitch = math.asin(look.Y)
 		elseif command == "select" then
 			weapons:select(arg)
+		elseif command == "flares" then
+			weapons:dropFlares()
 		end
+		local threatAt = weapons.threatAt
 		return {
 			locks = #weapons.locks,
 			candidate = weapons.candidate and weapons.candidate.Name,
 			progress = weapons.progress,
 			ammo = weapons.slots[weapons.selected].ammo,
 			message = weapons.message,
+			threat = weapons.threat,
+			threatRange = threatAt and (threatAt - drone.PrimaryPart.Position).Magnitude,
+			health = drone:GetAttribute("Health"),
 		}
 	end
 	hook.Parent = script
@@ -103,6 +155,7 @@ RunService:BindToRenderStep("Drone", Enum.RenderPriority.Camera.Value + 1, funct
 	mouseDelta = Vector2.zero
 
 	TargetPaths.animate(workspace:GetServerTimeNow())
+	sweepDishes()
 	controller:step(dt, if rig.mode == "Orbit" then Vector2.zero else mouse)
 	weapons:update(dt)
 	fx:update(dt)

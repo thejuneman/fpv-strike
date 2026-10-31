@@ -1,5 +1,6 @@
 -- Flight and weapons HUD: mode, telemetry, aim reticle, flight-path marker, weapon panel,
--- seeker circle and lock diamonds. The full goggles-style OSD comes in milestone 4.
+-- seeker circle and lock diamonds, the radar warning with its threat arrow, the damage
+-- vignette and the "signal lost" static. The full goggles-style OSD comes in milestone 4.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -14,6 +15,7 @@ Hud.__index = Hud
 
 local ACCENT = Color3.fromRGB(62, 232, 255)
 local WARN = Color3.fromRGB(255, 92, 92)
+local AMBER = Color3.fromRGB(255, 186, 64)
 local LOCK = Color3.fromRGB(255, 74, 90)
 local DIM = Color3.fromRGB(150, 158, 170)
 local WHITE = Color3.new(1, 1, 1)
@@ -26,7 +28,8 @@ local HINTS = {
 	Angle = "WASD tilt · MOUSE or Q/E yaw · SPACE/CTRL climb",
 	Acro = "MOUSE pitch/roll · A/D yaw · W/S throttle · SHIFT full",
 }
-local COMMON = " · LMB fire · 1-3 weapon · T mode · F camera · BACKSPACE reset"
+local COMMON = " · LMB fire · 1-3 weapon · G flares · R detonate · T mode · F camera · BACKSPACE reset"
+local STATIC_ROWS, STATIC_COLS = 48, 3
 
 local function make(className: string, props: { [string]: any }, parent: Instance?): any
 	local inst = Instance.new(className)
@@ -81,10 +84,10 @@ function Hud.new()
 	text(title, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Text = "FPV STRIKE", FontFace = BOLD, TextSize = 16, TextColor3 = ACCENT })
 	text(title, { Position = UDim2.fromOffset(12, 25), Size = UDim2.new(1, -24, 0, 14), Text = "flight model · PN guidance", TextSize = 11, TextColor3 = DIM })
 
-	local tele = panel(gui, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -16), Size = UDim2.fromOffset(200, 108) })
+	local tele = panel(gui, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -16), Size = UDim2.fromOffset(200, 126) })
 	self.telemetry = text(tele, {
 		Position = UDim2.fromOffset(12, 8),
-		Size = UDim2.new(1, -24, 0, 72),
+		Size = UDim2.new(1, -24, 0, 90),
 		TextYAlignment = Enum.TextYAlignment.Top,
 		RichText = true,
 		LineHeight = 1.15,
@@ -152,14 +155,17 @@ function Hud.new()
 	tick(UDim2.new(1, 2, 0.5, 0), Vector2.new(8, 2), Vector2.new(0, 0.5))
 	tick(UDim2.new(0.5, 0, 0, -2), Vector2.new(2, 6), Vector2.new(0.5, 1))
 
-	-- Weapons panel: one row per weapon with ammo and a reload bar
+	-- Weapons panel: one row per weapon (and the flares) with ammo and a reload bar
+	local rows = table.clone(Weapons.Order)
+	table.insert(rows, "Flares")
 	local arms = panel(gui, {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -16, 1, -16),
-		Size = UDim2.fromOffset(210, 16 + #Weapons.Order * 28),
+		Size = UDim2.fromOffset(210, 16 + #rows * 28),
 	})
 	self.rows = {}
-	for i, name in Weapons.Order do
+	for i, name in rows do
+		local spec = Weapons.Specs[name]
 		local row = make("Frame", {
 			BackgroundTransparency = 1,
 			Position = UDim2.fromOffset(12, 8 + (i - 1) * 28),
@@ -172,7 +178,7 @@ function Hud.new()
 			BorderSizePixel = 0,
 		}, row)
 		self.rows[name] = {
-			label = text(row, { Size = UDim2.new(1, 0, 0, 16), Text = `{i}  {Weapons.Specs[name].Label}` }),
+			label = text(row, { Size = UDim2.new(1, 0, 0, 16), Text = if spec then `{i}  {spec.Label}` else "G  FLARES" }),
 			ammo = text(row, { Size = UDim2.new(1, 0, 0, 16), TextXAlignment = Enum.TextXAlignment.Right, FontFace = BOLD }),
 			fill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, back),
 		}
@@ -202,9 +208,135 @@ function Hud.new()
 		TextStrokeTransparency = 0.5,
 	})
 
+	-- Radar warning: the threat's name, and an arrow around the reticle pointing at it
+	-- (top = ahead, bottom = behind you).
+	self.warning = text(gui, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.2),
+		Size = UDim2.fromOffset(420, 30),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = BOLD,
+		TextSize = 22,
+		TextStrokeTransparency = 0.4,
+	})
+	self.arrow = text(gui, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(30, 30),
+		Text = "▲",
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextSize = 26,
+		TextStrokeTransparency = 0.4,
+	})
+
+	-- Red vignette when you take damage: four edge bars fading inward.
+	self.hurt = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 40 }, gui)
+	self.hurtBars = {}
+	for _, edge in { { 0, 0, 1, 0.22, 90 }, { 0, 0.78, 1, 0.22, -90 }, { 0, 0, 0.16, 1, 0 }, { 0.84, 0, 0.16, 1, 180 } } do
+		local bar = make("Frame", {
+			Position = UDim2.fromScale(edge[1], edge[2]),
+			Size = UDim2.fromScale(edge[3], edge[4]),
+			BackgroundColor3 = Color3.fromRGB(255, 30, 30),
+			BorderSizePixel = 0,
+			BackgroundTransparency = 1,
+			ZIndex = 40,
+		}, self.hurt)
+		make("UIGradient", { Rotation = edge[5], Transparency = NumberSequence.new(0, 1) }, bar)
+		table.insert(self.hurtBars, bar)
+	end
+	self.hurtAt = -math.huge
+
+	-- Analog video breakup when the drone is lost: rows of noise blocks that roll and tear.
+	self.static = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(14, 14, 16), BorderSizePixel = 0, Visible = false, ZIndex = 50 }, gui)
+	self.bands = {}
+	for _ = 1, STATIC_ROWS * STATIC_COLS do
+		table.insert(self.bands, make("Frame", { BorderSizePixel = 0, ZIndex = 51 }, self.static))
+	end
+	self.lost = text(self.static, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(500, 50),
+		Text = "SIGNAL LOST",
+		TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = BOLD,
+		TextSize = 40,
+		TextStrokeTransparency = 0.2,
+		ZIndex = 52,
+	})
+	self.staticFrom, self.staticUntil = 0, 0
+
 	self.gui = gui
 	self.markers = {}
 	return self
+end
+
+function Hud:signalLost(seconds: number)
+	local now = os.clock()
+	if now > self.staticUntil then
+		self.staticFrom = now
+	end
+	self.staticUntil = math.max(self.staticUntil, now + seconds)
+end
+
+function Hud:damaged()
+	self.hurtAt = os.clock()
+end
+
+function Hud:_updateEffects(weapons)
+	local now = os.clock()
+	local hurt = math.clamp((now - self.hurtAt) / 0.6, 0, 1)
+	for _, bar in self.hurtBars do
+		bar.BackgroundTransparency = 0.35 + 0.65 * hurt
+	end
+
+	self.static.Visible = now < self.staticUntil
+	if self.static.Visible then
+		-- Hard cut in, fade out over the last half second.
+		local fade = math.clamp((self.staticUntil - now) / 0.5, 0, 1)
+		local roll = (now * 3) % 1
+		local i = 0
+		for row = 1, STATIC_ROWS do
+			-- Each row is a few blocks of random width, the whole row torn sideways a little.
+			local x = math.random(-8, 0) / 100
+			for col = 1, STATIC_COLS do
+				i += 1
+				local band = self.bands[i]
+				local width = if col == STATIC_COLS then 1.1 - x else math.random(5, 50) / 100
+				local grey = math.random(25, 215)
+				band.Position = UDim2.fromScale(x, ((row - 1) / STATIC_ROWS + roll) % 1)
+				band.Size = UDim2.new(width, 0, 1 / STATIC_ROWS, 1)
+				band.BackgroundColor3 = Color3.fromRGB(grey, grey, math.min(grey + math.random(0, 25), 255))
+				band.BackgroundTransparency = 1 - fade * math.random(40, 95) / 100
+				x += width
+			end
+		end
+		self.static.BackgroundTransparency = 1 - fade
+		self.lost.TextTransparency = 1 - fade
+		self.lost.TextStrokeTransparency = 1 - fade * 0.8
+		self.lost.TextColor3 = if math.floor(now * 4) % 2 == 0 then WHITE else WARN
+	end
+
+	local cam = workspace.CurrentCamera
+	local threat = weapons.threat
+	self.warning.Visible = threat ~= nil
+	self.arrow.Visible = threat ~= nil and weapons.threatAt ~= nil
+	if threat == "MISSILE" then
+		local blink = math.floor(now * 8) % 2 == 0
+		self.warning.Text = "MISSILE  ·  G FLARES"
+		self.warning.TextColor3 = WARN
+		self.warning.TextTransparency = if blink then 0 else 0.5
+	elseif threat == "RADAR" then
+		self.warning.Text = "RADAR LOCK"
+		self.warning.TextColor3 = AMBER
+		self.warning.TextTransparency = 0
+	end
+	if self.arrow.Visible then
+		local rel = cam.CFrame:PointToObjectSpace(weapons.threatAt)
+		local bearing = math.atan2(rel.X, -rel.Z)
+		local center = cam.ViewportSize / 2
+		self.arrow.Position = UDim2.fromOffset(center.X + math.sin(bearing) * 120, center.Y - math.cos(bearing) * 120)
+		self.arrow.Rotation = math.deg(bearing)
+		self.arrow.TextColor3 = if threat == "MISSILE" then WARN else AMBER
+	end
 end
 
 -- One marker per target: a box that becomes a spinning diamond while locking and a red
@@ -247,7 +379,7 @@ function Hud:_updateWeapons(weapons, rig)
 	local cam = workspace.CurrentCamera
 	local now = workspace:GetServerTimeNow()
 	for name, row in self.rows do
-		local spec = Weapons.Specs[name]
+		local spec = Weapons.Specs[name] or Weapons.Flares
 		local slot = weapons.slots[name]
 		Weapons.refill(slot, spec, now)
 		local selected = name == weapons.selected
@@ -288,6 +420,9 @@ function Hud:_updateWeapons(weapons, rig)
 			local locked = table.find(weapons.locks, target) ~= nil
 			local locking = weapons.candidate == target
 			local size, rotation, color, label = 12, 0, WHITE, ""
+			if target:GetAttribute("Kind") == "SAM" then
+				size, color, label = 16, AMBER, `SAM {math.round(dist * METERS_PER_STUD)}m` -- threats stand out
+			end
 			if locked then
 				size, rotation, color, label = 26, 45, LOCK, `LOCK {math.round(dist * METERS_PER_STUD)}m`
 			elseif locking then
@@ -299,7 +434,7 @@ function Hud:_updateWeapons(weapons, rig)
 			m.box.Rotation = rotation
 			m.stroke.Color = color
 			m.stroke.Thickness = if locked then 2 else 1.5
-			m.stroke.Transparency = if locked or locking then 0 else 0.55
+			m.stroke.Transparency = if locked or locking or color == AMBER then 0 else 0.55
 			m.tag.Text = label
 			m.tag.TextColor3 = color
 			m.barBack.Visible = locked or locking or health < 1
@@ -316,20 +451,25 @@ end
 
 function Hud:update(ctrl, rig, weapons)
 	self:_updateWeapons(weapons, rig)
+	self:_updateEffects(weapons)
 	local bat = Config.Battery
 	local volts = bat.EmptyVolts + (bat.FullVolts - bat.EmptyVolts) * ctrl.battery - bat.SagVolts * ctrl.throttle
 	local v = ctrl.root.AssemblyLinearVelocity
 	local batColor = if ctrl.battery < 0.2 then "#ff5c5c" else "#ffffff"
+	local health = ctrl.drone:GetAttribute("Health") or Config.Health
+	local hpColor = if health <= 40 then "#ff5c5c" else "#ffffff"
 
 	local kills = `{weapons.kills} KILL{if weapons.kills == 1 then "" else "S"}`
 	self.status.Text = `{string.upper(ctrl.mode)}  ·  {string.upper(rig.mode)}  ·  {kills}`
 	self.telemetry.Text = string.format(
-		'SPD  <b>%3d</b> km/h\nALT  <b>%5.1f</b> m\nTHR  <b>%3d</b> %%\nBAT  <font color="%s"><b>%4.1f</b> V</font>',
+		'SPD  <b>%3d</b> km/h\nALT  <b>%5.1f</b> m\nTHR  <b>%3d</b> %%\nBAT  <font color="%s"><b>%4.1f</b> V</font>\nHP   <font color="%s"><b>%3d</b></font>',
 		math.round(v.Magnitude),
 		math.max(ctrl.height, 0) * METERS_PER_STUD,
 		math.round(ctrl.throttle * 100),
 		batColor,
-		volts
+		volts,
+		hpColor,
+		math.ceil(health)
 	)
 	self.throttleBar.Size = UDim2.fromScale(ctrl.throttle, 1)
 	self.hints.Text = HINTS[ctrl.mode] .. COMMON

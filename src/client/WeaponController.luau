@@ -1,5 +1,6 @@
--- Weapon selection, the lock-on seeker and firing. Shots are drawn on this client the moment
--- you fire and sent to the server, which re-flies them and has the final word on hits.
+-- Weapon selection, the lock-on seeker, firing, flares, the kamikaze switch and the radar
+-- warning receiver. Shots are drawn on this client the moment you fire and sent to the server,
+-- which re-flies them and has the final word on hits.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -10,9 +11,11 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Weapons = require(Shared:WaitForChild("Weapons"))
+local Flares = require(Shared:WaitForChild("Flares"))
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local fireRemote = remotes:WaitForChild("FireWeapon") :: RemoteEvent
+local actionRemote = remotes:WaitForChild("DroneAction") :: RemoteEvent
 local missileRemote = remotes:WaitForChild("Missiles") :: RemoteEvent
 
 local WeaponController = {}
@@ -25,13 +28,17 @@ function WeaponController.new(drone: Model, fx)
 	local self = setmetatable({}, WeaponController)
 	local root = drone.PrimaryPart :: BasePart
 	local now = workspace:GetServerTimeNow()
+	self.drone = drone
 	self.root = root
 	self.fx = fx
 	self.selected = Weapons.Order[1]
 	self.slots = {}
-	for name, spec in Weapons.Specs do
-		self.slots[name] = Weapons.newSlot(spec, now)
+	for _, name in Weapons.Order do
+		self.slots[name] = Weapons.newSlot(Weapons.Specs[name], now)
 	end
+	self.slots.Flares = Weapons.newSlot(Weapons.Flares, now)
+	self.salvos = 0
+	self.threat, self.threatAt = nil, nil -- "RADAR" or "MISSILE", and where it's coming from
 	self.locks = {} -- confirmed locks, in the order they were made
 	self.candidate = nil -- target currently being locked
 	self.progress = 0
@@ -62,6 +69,10 @@ function WeaponController.new(drone: Model, fx)
 	self.beep.Volume = 0.3
 	self.beep.Parent = SoundService
 	self.beepAt = 0
+	self.warn = self.beep:Clone()
+	self.warn.Volume = 0.45
+	self.warn.Parent = SoundService
+	self.warnAt = 0
 
 	missileRemote.OnClientEvent:Connect(function(kind: string, ...)
 		self:_onServer(kind, ...)
@@ -168,6 +179,60 @@ function WeaponController:_updateTone()
 	end
 end
 
+-- Radar warning receiver: a slow low tone while a SAM holds a lock on you, a frantic one once
+-- its missile is in the air.
+function WeaponController:_updateWarning()
+	local missile = self.fx:threat(self.drone)
+	local radar = nil
+	if not missile then
+		for _, site in CollectionService:GetTagged("Target") do
+			if site:GetAttribute("Tracking") == player.UserId and site.PrimaryPart then
+				radar = site.PrimaryPart.Position
+				break
+			end
+		end
+	end
+	self.threat = if missile then "MISSILE" elseif radar then "RADAR" else nil
+	self.threatAt = missile or radar
+	if self.threat then
+		local interval = if missile then 0.11 else 0.5
+		if os.clock() - self.warnAt >= interval then
+			self.warnAt = os.clock()
+			self.warn.PlaybackSpeed = if missile then 0.8 else 0.55
+			self.warn:Play()
+		end
+	end
+end
+
+function WeaponController:dropFlares()
+	local cfg = Weapons.Flares
+	local now = workspace:GetServerTimeNow()
+	if self.drone:GetAttribute("Down") or not Weapons.tryFire(self.slots.Flares, cfg, now, 0) then
+		return
+	end
+	self.salvos += 1
+	local root = self.root
+	local origin = root.Position - root.CFrame.UpVector
+	local list = Flares.salvo(origin, root.CFrame, root.AssemblyLinearVelocity, cfg.PerSalvo, now, random)
+	local kicks = {}
+	for i, flare in list do
+		kicks[i] = flare.velocity
+	end
+	self.fx:flares(`{player.UserId}:f{self.salvos}`, list)
+	actionRemote:FireServer("flares", self.salvos, origin, kicks, now)
+	self:_say("FLARES")
+end
+
+-- Kamikaze: the server sets off the warhead where we say the drone is. Returns whether it went.
+function WeaponController:detonate(): boolean
+	if self.drone:GetAttribute("Down") then
+		return false
+	end
+	actionRemote:FireServer("detonate", self.root.Position)
+	self:_clearLocks()
+	return true
+end
+
 function WeaponController:_launchDirection(spec: Weapons.Spec, origin: Vector3): Vector3
 	local eye = workspace.CurrentCamera.CFrame
 	if spec.Guidance == "None" then
@@ -196,7 +261,7 @@ function WeaponController:_fire(name: string, target: Model?, now: number)
 	local direction = self:_launchDirection(spec, origin)
 	self.shots += 1
 	local velocity = self.root.AssemblyLinearVelocity + direction * spec.LaunchSpeed
-	self.fx:spawn(`{player.UserId}:{self.shots}`, name, origin, velocity, direction, target)
+	self.fx:spawn(`{player.UserId}:{self.shots}`, name, origin, velocity, direction, target, true)
 	fireRemote:FireServer(name, self.shots, origin, direction, target)
 end
 
@@ -228,9 +293,11 @@ function WeaponController:update(dt: number)
 	self.ray.FilterDescendantsInstances = { workspace:FindFirstChild("Drones"), self.fx.folder, player.Character }
 	self:_updateSeeker(dt, eye)
 	self:_updateTone()
+	self:_updateWarning()
 
 	local spec = Weapons.Specs[self.selected]
 	local trigger = not UserInputService:GetFocusedTextBox()
+		and not self.drone:GetAttribute("Down")
 		and (
 			UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
 			or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR1)
@@ -263,9 +330,15 @@ end
 function WeaponController:_onServer(kind: string, ...)
 	if kind == "spawn" then
 		self.fx:spawn(...)
+	elseif kind == "flares" then
+		self.fx:flares(...)
+	elseif kind == "decoy" then
+		self.fx:decoy(...)
+	elseif kind == "release" then
+		self.fx:release(...)
 	elseif kind == "boom" then
-		local id, at, name, ownerId, result = ...
-		self.fx:boom(id, at, name)
+		local id, at, radius, ownerId, result = ...
+		self.fx:boom(id, at, radius)
 		if ownerId == player.UserId and result == "kill" then
 			self.kills += 1
 		end

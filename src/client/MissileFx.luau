@@ -1,6 +1,7 @@
--- Draws missiles and explosions. Every missile here is flown by the shared Missile code, so it
--- tracks the server's copy closely. Impacts are predicted locally so a missile never visibly
--- sails through its target; the server's "boom" has the final say and corrects a wrong guess.
+-- Draws missiles, flares and explosions. Every missile here is flown by the shared Missile code,
+-- so it tracks the server's copy closely. Your own shots predict their impacts so they never
+-- visibly sail through a target; the server's "boom" has the final say and corrects a wrong guess.
+-- Flares follow the shared closed-form path, so they need no updates after launch.
 
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Weapons = require(Shared:WaitForChild("Weapons"))
 local Missile = require(Shared:WaitForChild("Missile"))
+local Flares = require(Shared:WaitForChild("Flares"))
 local TargetPaths = require(Shared:WaitForChild("TargetPaths"))
 
 local MissileFx = {}
@@ -25,6 +27,8 @@ local LOOKS = {
 	Rockets = { length = 1.2, diameter = 0.22, body = Color3.fromRGB(200, 202, 208), nose = Color3.fromRGB(60, 62, 70), smoke = 0.7, flame = 0.35 },
 	Seeker = { length = 2.2, diameter = 0.32, body = Color3.fromRGB(236, 236, 240), nose = Color3.fromRGB(226, 52, 64), smoke = 2.2, flame = 0.55 },
 	TopAttack = { length = 2.6, diameter = 0.42, body = Color3.fromRGB(96, 104, 70), nose = Color3.fromRGB(40, 42, 38), smoke = 2.8, flame = 0.6 },
+	-- A fat, lingering smoke column so you can see a SAM coming from far off.
+	SAM = { length = 3.4, diameter = 0.5, body = Color3.fromRGB(214, 208, 192), nose = Color3.fromRGB(70, 72, 60), smoke = 5, flame = 0.8, trail = 1.6 },
 }
 
 local function part(props: { [string]: any }): Part
@@ -102,11 +106,12 @@ local function template(name: string): Model
 	light.Enabled = false
 	light.Parent = flame
 
+	local trailHalf = look.trail or d * 0.9
 	local a0 = Instance.new("Attachment")
-	a0.Position = Vector3.new(0, d * 0.9, half)
+	a0.Position = Vector3.new(0, trailHalf, half)
 	a0.Parent = root
 	local a1 = Instance.new("Attachment")
-	a1.Position = Vector3.new(0, -d * 0.9, half)
+	a1.Position = Vector3.new(0, -trailHalf, half)
 	a1.Parent = root
 	local trail = Instance.new("Trail")
 	trail.Name = "Smoke"
@@ -132,6 +137,7 @@ function MissileFx.new(onExplosion: (Vector3, number) -> ())
 	self.folder.Name = "MissileFx"
 	self.folder.Parent = workspace
 	self.flights = {}
+	self.salvos = {}
 	self.onExplosion = onExplosion
 	self.ray = RaycastParams.new()
 	self.ray.FilterType = Enum.RaycastFilterType.Exclude
@@ -139,7 +145,8 @@ function MissileFx.new(onExplosion: (Vector3, number) -> ())
 	return self
 end
 
-function MissileFx:spawn(id: string, name: string, origin: Vector3, velocity: Vector3, direction: Vector3, target: Model?)
+-- `predict` is for your own shots: draw their impacts without waiting for the server.
+function MissileFx:spawn(id: string, name: string, origin: Vector3, velocity: Vector3, direction: Vector3, target: Model?, predict: boolean?)
 	if self.flights[id] then
 		return
 	end
@@ -151,8 +158,8 @@ function MissileFx:spawn(id: string, name: string, origin: Vector3, velocity: Ve
 	local launch = Instance.new("Sound")
 	launch.SoundId = Config.Audio.Launch
 	launch.Volume = if name == "Rockets" then 0.3 else 0.8
-	launch.PlaybackSpeed = if name == "Rockets" then random:NextNumber(1.4, 1.6) else 1
-	launch.RollOffMaxDistance = 600
+	launch.PlaybackSpeed = if name == "Rockets" then random:NextNumber(1.4, 1.6) elseif name == "SAM" then 0.7 else 1
+	launch.RollOffMaxDistance = if name == "SAM" then 1500 else 600
 	launch.Parent = root
 	launch:Play()
 
@@ -167,9 +174,111 @@ function MissileFx:spawn(id: string, name: string, origin: Vector3, velocity: Ve
 		trail = root:FindFirstChild("Smoke"),
 		target = target,
 		lastSeen = target and target.PrimaryPart and target.PrimaryPart.Position,
+		predict = predict == true,
 		done = false,
 		born = os.clock(),
 	}
+end
+
+-- A flare salvo: burning balls with a light and a smoke trail, placed every frame from the
+-- shared path. `list` is the same table the server decoys against.
+function MissileFx:flares(id: string, list: { Flares.Flare })
+	if self.salvos[id] then
+		return
+	end
+	local balls = {}
+	for i, flare in list do
+		local ball = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 1.2, CFrame = CFrame.new(flare.origin), Color = Color3.fromRGB(255, 240, 210), Material = Enum.Material.Neon, Transparency = 1 })
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 200, 140)
+		light.Range = 24
+		light.Brightness = 3
+		light.Enabled = false
+		light.Parent = ball
+		local a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(0, 0.4, 0)
+		a0.Parent = ball
+		local a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(0, -0.4, 0)
+		a1.Parent = ball
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.FaceCamera = true
+		trail.Lifetime = 1.6
+		trail.Texture = TEXTURES .. "smoke_main.dds"
+		trail.Color = ColorSequence.new(Color3.fromRGB(255, 250, 240), Color3.fromRGB(190, 190, 195))
+		trail.Transparency = numbers(0.2, 1)
+		trail.WidthScale = numbers(1, 5)
+		trail.Enabled = false
+		trail.Parent = ball
+		ball.Parent = self.folder
+		balls[i] = { part = ball, light = light, trail = trail }
+	end
+	self.salvos[id] = { list = list, balls = balls }
+
+	local pop = Instance.new("Sound")
+	pop.SoundId = Config.Audio.Launch
+	pop.Volume = 0.35
+	pop.PlaybackSpeed = 2.4
+	pop.Parent = balls[1].part
+	pop:Play()
+end
+
+-- The server pulled a missile onto a flare, or the flare burnt out and let it go.
+function MissileFx:decoy(id: string, salvoId: string, index: number)
+	local f, salvo = self.flights[id], self.salvos[salvoId]
+	if f and salvo then
+		f.decoy = salvo.list[index]
+	end
+end
+
+function MissileFx:release(id: string, keep: boolean)
+	local f = self.flights[id]
+	if f and f.decoy then
+		f.lastSeen = Flares.at(f.decoy, workspace:GetServerTimeNow())
+		f.decoy = nil
+		if not keep then
+			f.target = nil
+		end
+	end
+end
+
+-- The nearest enemy missile homing on `drone`, for the missile warning.
+function MissileFx:threat(drone: Model): Vector3?
+	local best, bestDist = nil, math.huge
+	for _, f in self.flights do
+		if not f.done and f.target == drone and not f.decoy then
+			local dist = (f.state.pos - drone.PrimaryPart.Position).Magnitude
+			if dist < bestDist then
+				best, bestDist = f.state.pos, dist
+			end
+		end
+	end
+	return best
+end
+
+local function updateSalvos(salvos, now: number)
+	for id, salvo in salvos do
+		local over = true
+		for i, flare in salvo.list do
+			local ball = salvo.balls[i]
+			local age = now - flare.born
+			local burning = age >= 0 and age < Flares.Burn
+			over = over and age > Flares.Burn + ball.trail.Lifetime
+			ball.part.CFrame = CFrame.new(Flares.at(flare, now))
+			ball.part.Transparency = if burning then 0 else 1
+			ball.part.Size = Vector3.one * (if burning then 1.1 - 0.6 * age / Flares.Burn else 0.1)
+			ball.light.Enabled = burning
+			ball.trail.Enabled = burning
+		end
+		if over then
+			for _, ball in salvo.balls do
+				ball.part:Destroy()
+			end
+			salvos[id] = nil
+		end
+	end
 end
 
 -- Stops drawing the airframe but lets its smoke trail drift and fade.
@@ -187,6 +296,7 @@ end
 
 function MissileFx:update(dt: number)
 	local now = workspace:GetServerTimeNow()
+	updateSalvos(self.salvos, now)
 	for id, f in self.flights do
 		if f.done then
 			if os.clock() - f.born > f.spec.Lifetime + 5 then
@@ -196,7 +306,9 @@ function MissileFx:update(dt: number)
 		end
 		local target = f.target
 		local aimPos, aimVel = nil, nil
-		if target and target.Parent and target.PrimaryPart and target:GetAttribute("Health") > 0 then
+		if f.decoy then
+			aimPos, aimVel = Flares.at(f.decoy, now), Flares.velocity(f.decoy, now)
+		elseif target and target.Parent and target.PrimaryPart and target:GetAttribute("Health") > 0 and not target:GetAttribute("Down") then
 			f.lastSeen = target.PrimaryPart.Position
 			aimPos, aimVel = f.lastSeen, TargetPaths.velocity(target, now)
 		elseif f.lastSeen then
@@ -212,7 +324,8 @@ function MissileFx:update(dt: number)
 		f.light.Enabled = burning
 		f.trail.Enabled = s.age >= f.spec.IgnitionDelay
 
-		-- Predict the impact so the shooter sees it now rather than a round trip later.
+		-- Predict the impact so the shooter sees it now rather than a round trip later. Anyone
+		-- else's missile (a SAM coming for you) just stops there and waits for the server's boom.
 		local travel = s.pos - before
 		local hit = if s.age > 0.1 and travel.Magnitude > 1e-3 then workspace:Spherecast(before, 0.5, travel, self.ray) else nil
 		local at = hit and hit.Position
@@ -222,10 +335,12 @@ function MissileFx:update(dt: number)
 				at = closest
 			end
 		end
-		if at then
+		if at and f.predict then
 			f.predicted = at
 			self:_retire(f)
 			self:explode(at, f.spec.BlastRadius)
+		elseif at then
+			self:_retire(f)
 		elseif s.age > f.spec.Lifetime + 1 then
 			self:_retire(f)
 		end
@@ -233,14 +348,14 @@ function MissileFx:update(dt: number)
 end
 
 -- The server's verdict. Skip the explosion if our prediction already put one here.
-function MissileFx:boom(id: string, at: Vector3, name: string)
+function MissileFx:boom(id: string, at: Vector3, radius: number)
 	local f = self.flights[id]
 	self.flights[id] = nil
 	if f and not f.done then
 		self:_retire(f)
 	end
 	if not (f and f.predicted and (f.predicted - at).Magnitude < 25) then
-		self:explode(at, Weapons.Specs[name].BlastRadius)
+		self:explode(at, radius)
 	end
 end
 

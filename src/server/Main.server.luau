@@ -1,14 +1,16 @@
 --!strict
 -- Builds the range and its targets, gives every player a drone on the launch pad, and starts
--- the server's weapon simulation.
+-- the server's weapon simulation and the air defences.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local DroneBuilder = require(ReplicatedStorage.Shared.DroneBuilder)
 local World = require(script.Parent.World)
 local Targets = require(script.Parent.Targets)
 local Combat = require(script.Parent.Combat)
+local Defenses = require(script.Parent.Defenses)
 
 local spawnCFrame = World.build()
 Targets.build()
@@ -17,6 +19,7 @@ local drones = Instance.new("Folder")
 drones.Name = "Drones"
 drones.Parent = workspace
 Combat.start(drones)
+Defenses.start(drones)
 
 -- ponytail: every drone spawns on the one pad; give players their own pads when multiplayer matters
 local function spawnDrone(player: Player)
@@ -24,6 +27,8 @@ local function spawnDrone(player: Player)
 	drone.Name = player.Name
 	drone:SetAttribute("OwnerId", player.UserId)
 	drone:SetAttribute("SpawnCFrame", spawnCFrame)
+	drone:SetAttribute("Health", Config.Health)
+	drone:SetAttribute("Down", false)
 	drone:PivotTo(spawnCFrame)
 	drone.Parent = drones
 	-- The owner's client simulates the drone: input feels instant and physics replicates for free.

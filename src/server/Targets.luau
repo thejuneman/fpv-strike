@@ -1,5 +1,5 @@
 --!strict
--- Range targets: trucks, tanks and an aerial target drone. Health lives in attributes so every
+-- Range targets: trucks, tanks, aerial target drones and SAM sites. Health lives in attributes so every
 -- client can show it; only this module changes it. Each target is one anchored hitbox with
 -- welded visuals, so a move replicates as a single CFrame.
 
@@ -17,11 +17,13 @@ local ORANGE = Color3.fromRGB(255, 120, 40)
 local WHITE = Color3.fromRGB(236, 236, 240)
 local CHAR = Color3.fromRGB(20, 18, 16)
 
+local CONCRETE = Color3.fromRGB(120, 118, 112)
+local RED = Color3.fromRGB(255, 50, 50)
+
 local VERTICAL = CFrame.Angles(0, 0, math.rad(90))
 local FORWARD = CFrame.Angles(0, math.rad(90), 0)
-local RESPAWN = 8
 
-type Kind = { health: number, hitbox: Vector3, grounded: boolean, build: (add: Adder) -> () }
+type Kind = { health: number, hitbox: Vector3, grounded: boolean, respawn: number, build: (add: Adder, root: Part) -> () }
 type Adder = (size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?) -> Part
 
 local KINDS: { [string]: Kind } = {
@@ -29,6 +31,7 @@ local KINDS: { [string]: Kind } = {
 		health = 100,
 		hitbox = Vector3.new(6.4, 6, 14),
 		grounded = true,
+		respawn = 8,
 		build = function(add)
 			add(Vector3.new(6, 0.8, 13.5), CFrame.new(0, -1.6, 0), DARK)
 			add(Vector3.new(6, 3.4, 4), CFrame.new(0, 0.3, -4.6), OLIVE)
@@ -46,6 +49,7 @@ local KINDS: { [string]: Kind } = {
 		health = 220,
 		hitbox = Vector3.new(9, 5, 13),
 		grounded = true,
+		respawn = 8,
 		build = function(add)
 			add(Vector3.new(8, 2.4, 12.5), CFrame.new(0, -0.9, 0), OLIVE)
 			for _, side in { -1, 1 } do
@@ -60,6 +64,7 @@ local KINDS: { [string]: Kind } = {
 		health = 60,
 		hitbox = Vector3.new(12, 2.4, 10),
 		grounded = false,
+		respawn = 8,
 		build = function(add)
 			add(Vector3.new(9, 1.3, 1.3), FORWARD, ORANGE, nil, Enum.PartType.Cylinder)
 			add(Vector3.new(1.3, 1.3, 1.3), CFrame.new(0, 0, -4.5), WHITE, nil, Enum.PartType.Ball)
@@ -67,6 +72,35 @@ local KINDS: { [string]: Kind } = {
 			add(Vector3.new(0.2, 1.8, 1.4), CFrame.new(0, 0.9, 4), ORANGE)
 			add(Vector3.new(4, 0.2, 1.2), CFrame.new(0, 0, 4.1), ORANGE)
 			add(Vector3.new(0.5, 0.5, 0.3), CFrame.new(0, 0, 4.6), Color3.fromRGB(255, 160, 80), Enum.Material.Neon)
+		end,
+	},
+	-- Vertical-launch SAM site: four-cell launcher, radar mast with a sweeping dish.
+	SAM = {
+		health = 160,
+		hitbox = Vector3.new(12, 9, 12),
+		grounded = true,
+		respawn = 20,
+		build = function(add, root)
+			add(Vector3.new(12, 1, 12), CFrame.new(0, -4, 0), CONCRETE, Enum.Material.Concrete)
+			add(Vector3.new(5, 4.5, 5), CFrame.new(-2.5, -1.25, 0), OLIVE)
+			for _, x in { -1.25, 1.25 } do
+				for _, z in { -1.25, 1.25 } do
+					add(Vector3.new(0.2, 1.8, 1.8), CFrame.new(-2.5 + x, 1.05, z) * VERTICAL, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+				end
+			end
+			add(Vector3.new(3, 2.5, 4), CFrame.new(3.5, -2.25, 2.5), OLIVE) -- generator
+			add(Vector3.new(7, 0.8, 0.8), CFrame.new(3.5, 0, -2.5) * VERTICAL, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+			add(Vector3.new(0.7, 0.7, 0.7), CFrame.new(3.5, 3.6, -2.5), RED, Enum.Material.Neon, Enum.PartType.Ball)
+			-- The dish hangs off a Motor6D so clients can sweep it without touching the hitbox.
+			local dish = add(Vector3.new(0.4, 3.2, 5), CFrame.new(3.5, 2.6, -2.5) * CFrame.Angles(0, 0, math.rad(-20)), WHITE, Enum.Material.Metal)
+			dish:FindFirstChildOfClass("WeldConstraint"):Destroy()
+			local spin = Instance.new("Motor6D")
+			spin.Name = "DishSpin"
+			spin.Part0 = root
+			spin.Part1 = dish
+			spin.C0 = CFrame.new(3.5, 2.6, -2.5)
+			spin.C1 = CFrame.Angles(0, 0, math.rad(20))
+			spin.Parent = root
 		end,
 	},
 }
@@ -85,7 +119,7 @@ local function build(kindName: string): Model
 	root.Parent = model
 	model.PrimaryPart = root
 
-	kind.build(function(size, cf, color, material, shape)
+	kind.build(function(size, cf, color, material, shape): Part
 		local p = Instance.new("Part")
 		p.Shape = shape or Enum.PartType.Block
 		p.Size = size
@@ -105,7 +139,7 @@ local function build(kindName: string): Model
 		weld.Part1 = p
 		weld.Parent = p
 		return p
-	end)
+	end, root)
 
 	model:SetAttribute("Kind", kindName)
 	model:SetAttribute("MaxHealth", kind.health)
@@ -152,6 +186,7 @@ local function restore(model: Model)
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.AssemblyAngularVelocity = Vector3.zero
 	model:SetAttribute("Health", model:GetAttribute("MaxHealth"))
+	model:SetAttribute("BreakAt", nil)
 	TargetPaths.place(model, workspace:GetServerTimeNow())
 end
 
@@ -167,7 +202,7 @@ function Targets.damage(model: Model, amount: number): (boolean, boolean)
 		return true, false
 	end
 	wreck(model)
-	task.delay(RESPAWN, restore, model)
+	task.delay(KINDS[model:GetAttribute("Kind") :: string].respawn, restore, model)
 	return true, true
 end
 

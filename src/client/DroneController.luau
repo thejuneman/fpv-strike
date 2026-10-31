@@ -216,7 +216,8 @@ function Controller:step(dt: number, mouse: Vector2)
 	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -50, 0), self.ray)
 	self.height = if hit then hit.Distance - root.Size.Y / 2 else 50
 
-	if not self.armed and (kb.vertical > 0 or kb.forward > 0 or pad.rt > 0.2 or pad.left.Magnitude > 0.3) then
+	local down = self.drone:GetAttribute("Down") -- lost; the server is readying a fresh one
+	if not self.armed and not down and (kb.vertical > 0 or kb.forward > 0 or pad.rt > 0.2 or pad.left.Magnitude > 0.3) then
 		self.armed = true
 	end
 	-- A hard hit kills the motors for a moment and lets the quad tumble.

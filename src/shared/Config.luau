@@ -3,6 +3,9 @@
 -- Units: studs, seconds, radians (deg/s only where a name says Rate under Acro).
 
 local Config = {
+	Health = 100, -- a SAM hit takes 60
+	DownTime = 3, -- seconds of "signal lost" before a fresh drone is on the pad
+
 	-- Physics
 	Gravity = 70, -- drone-only gravity; world gravity is cancelled on the drone
 	ThrustToWeight = 4.5,

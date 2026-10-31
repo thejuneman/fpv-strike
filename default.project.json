@@ -10,6 +10,7 @@
       "Remotes": {
         "$className": "Folder",
         "FireWeapon": { "$className": "RemoteEvent" },
+        "DroneAction": { "$className": "RemoteEvent" },
         "Missiles": { "$className": "RemoteEvent" }
       }
     },

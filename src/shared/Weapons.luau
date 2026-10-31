@@ -44,9 +44,28 @@ export type Spec = {
 
 export type Slot = { ammo: number, timer: number, updated: number, lastShot: number }
 
+-- The fields the ammo rule reads, so flares can share it with the weapons.
+export type Magazine = { Ammo: number, Reload: number, Interval: number }
+
 local Weapons = {}
 
+-- What players can fire. Anything else in Specs (the SAM) is enemy-only.
 Weapons.Order = { "Rockets", "Seeker", "TopAttack" }
+
+-- Countermeasures: each press fans out a salvo of flares behind the drone.
+Weapons.Flares = {
+	Ammo = 6,
+	Reload = 5,
+	Interval = 0.6,
+	PerSalvo = 3,
+	Range = 600, -- missiles further out don't bite
+	Cone = math.rad(35), -- a flare must sit this close to the missile's nose to pull it off
+	Decoy = 0.8, -- chance your salvo pulls a missile off you
+	EnemyDecoy = 0.5, -- chance an enemy drone's salvo pulls your seeker off it
+}
+
+-- Self-detonation, the original clip's kamikaze run.
+Weapons.Kamikaze = { Damage = 260, BlastRadius = 22 }
 
 local specs: { [string]: Spec } = {
 	-- Unguided salvo from the two pods, converging on the reticle.
@@ -145,14 +164,47 @@ local specs: { [string]: Spec } = {
 		Damage = 230,
 		BlastRadius = 16,
 	},
+	-- Enemy surface-to-air missile: cold-launched straight up, then PN onto your drone. Turning
+	-- won't shake it; flares, cover and staying low will.
+	SAM = {
+		Label = "SAM",
+		Guidance = "PN",
+		Ammo = 1,
+		Reload = 8, -- seconds between launches from one site
+		Interval = 8,
+		LaunchSpeed = 45,
+		LaunchPitch = 0,
+		Spread = 0,
+		IgnitionDelay = 0.35,
+		BoostTime = 1.4,
+		BoostAccel = 300,
+		SustainTime = 4,
+		SustainAccel = 80,
+		Drag = 0.0014,
+		Gravity = 30,
+		NavGain = 4,
+		MaxG = 600,
+		LoftHeight = 0,
+		LoftBias = 0,
+		DiveAngle = 0,
+		LockTime = 2.2, -- radar lock held before launch: your warning
+		MaxLocks = 1,
+		SeekerCone = 0,
+		TrackCone = 0,
+		Range = 520,
+		Fuse = 7,
+		Lifetime = 9,
+		Damage = 60,
+		BlastRadius = 12,
+	},
 }
 Weapons.Specs = specs
 
-function Weapons.newSlot(spec: Spec, now: number): Slot
+function Weapons.newSlot(spec: Magazine, now: number): Slot
 	return { ammo = spec.Ammo, timer = 0, updated = now, lastShot = -math.huge }
 end
 
-function Weapons.refill(slot: Slot, spec: Spec, now: number)
+function Weapons.refill(slot: Slot, spec: Magazine, now: number)
 	if slot.ammo >= spec.Ammo then
 		slot.timer = 0
 	else
@@ -167,7 +219,7 @@ end
 
 -- Spends a round if one is ready. `grace` credits reload time that passed while the shot was
 -- crossing the network (server only; the client passes 0).
-function Weapons.tryFire(slot: Slot, spec: Spec, now: number, grace: number): boolean
+function Weapons.tryFire(slot: Slot, spec: Magazine, now: number, grace: number): boolean
 	Weapons.refill(slot, spec, now)
 	if now - slot.lastShot < spec.Interval - math.min(grace, spec.Interval * 0.5) then
 		return false

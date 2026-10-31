@@ -2,7 +2,8 @@
 
 An FPV strike-drone sandbox for Roblox. A quadcopter with a real flight model, three flight
 modes, and three weapons — unguided rockets, a lock-on missile flying proportional navigation,
-and a top-attack missile — with every hit decided by the server.
+and a top-attack missile — with every hit decided by the server. The range fights back: SAM
+sites hunt you, enemy drones dodge and flare, and the house comes apart brick by brick.
 
 > **Built with AI.** This project was written with Claude (Anthropic's AI) as the coding agent,
 > directed, play-tested and reviewed by me. It started as "rebuild this drone from a short clip,
@@ -14,6 +15,8 @@ and a top-attack missile — with every hit decided by the server.
 |---|---|
 | ![Four-target seeker volley](docs/screenshots/multi-lock.jpg) | ![Top-attack kill](docs/screenshots/top-attack-kill.jpg) |
 | ![Rocket salvo](docs/screenshots/rocket-salvo.jpg) | ![FPV camera indoors](docs/screenshots/fpv-interior.jpg) |
+| ![A salvo breaching the wall](docs/screenshots/wall-breach.jpg) | ![Flares against an inbound SAM](docs/screenshots/flares.jpg) |
+| ![SAM site](docs/screenshots/sam-site.jpg) | ![Signal lost after a kamikaze run](docs/screenshots/signal-lost.jpg) |
 
 ## What's interesting in here
 
@@ -52,6 +55,39 @@ the shooter never sees a missile sail through a target, and get corrected if the
 identically on the server and every client — smooth on screen, consistent for hit checks, and
 nearly free on the network.
 
+**Air defence that fights back.** SAM sites sweep for drones, hold a radar lock for a couple of
+seconds (you hear it, and an arrow points at the site), then cold-launch a missile straight up
+that flies the same PN code as yours. You can't out-turn it. Your options: drop flares, put the
+house between you and the radar, fly under 12 studs where the radar loses you in ground
+clutter, or out-range it with the top-attack.
+
+**Flares, where timing matters.** Flare paths are the closed-form solution of linear drag, so
+like the targets they are pure functions of time: the server and every client agree on where
+every flare is without sending a single update. Each missile homing on you gets one roll per
+salvo, at the first moment a burning flare sits in its seeker cone. Pop them as the SAM leaves
+the rail and they work once it tips over toward you; pop them too late and the decoyed missile
+still bursts close enough to hurt.
+
+**Enemy drones that dodge.** When your seeker closes in, an enemy drone breaks hard and fans
+out flares. The break is a smooth offset layered onto its path, started by a server-set
+attribute, so every client flies the identical manoeuvre and hit checks still agree.
+
+**Destructible house.** The walls are laid brick by brick (533 of them). Every blast knocks
+loose the bricks it reaches; they tumble as real physics, and the wall rebuilds itself 20 seconds
+later. Rockets chip holes, a seeker opens a doorway, and a kamikaze run takes out a wall section.
+
+**Kamikaze.** R detonates the drone itself, the original clip's attack. The server sets off the
+warhead where you saw the drone (checked against its own view), and the feed cuts to analog
+static, just as a real FPV strike looks from the goggles.
+
+**A guidance bug the tests caught.** The first SAM test failed: a missile launched straight up
+never reached a drone just 400 studs away. Tracing the flight showed it settling at the exact
+angle where the guidance hands over from a max-G turn to PN. Flying almost sideways to the
+target there, its closing speed was tiny, so PN barely turned it; it slid back under the
+threshold, pulled max G, crossed again, and orbited until it hit the ground. Moving the
+handover from 78° to 45° off the nose fixed it. A parameter sweep confirmed the seeker and
+top-attack still pass every test.
+
 **Feel.** Spinning props that blur into discs, per-motor speed from a motor mix, motor pitch that
 follows RPM, speed-scaled trails and FOV, spring-damped cameras with wall avoidance, explosions
 whose sound arrives at the speed of sound, and trauma-based camera shake.
@@ -66,20 +102,26 @@ whose sound arrives at the speed of sound, and trauma-based camera shake.
 | Boost | Shift | L1 |
 | Fire | Left mouse | R1 |
 | Weapon | 1 rockets · 2 seeker · 3 top-attack | D-pad up |
+| Flares | G | B |
+| Detonate (kamikaze) | R | L3 |
 | Flight mode | T | X |
 | Camera (chase / FPV / orbit) | F | Y |
 | Reset to pad | Backspace | D-pad down |
 
 Hold fire for rockets. For the seeker and top-attack, keep a target near the reticle until its
-diamond turns red, then fire.
+diamond turns red, then fire. The SAM sites (amber markers) sit past the range; "RADAR LOCK"
+means one is about to fire, "MISSILE" means it has.
 
 ## Project layout
 
 ```
-src/shared/   Config, FlightModel (pure flight math), Missile (pure guidance), Weapons (specs +
-              ammo rule), TargetPaths, DroneBuilder (the drone, built from code), Smooth
-src/server/   World (baseplate + house), Targets, Combat (shot validation, missiles, damage)
-src/client/   DroneController, CameraRig, DroneVisuals, WeaponController, MissileFx, Hud, Main
+src/shared/   Config, FlightModel (pure flight math), Missile (pure guidance), Flares (closed-form
+              flare paths), Weapons (specs + ammo rule), TargetPaths (paths + evasive breaks),
+              DroneBuilder (the drone, built from code), Smooth
+src/server/   World (baseplate + brick-by-brick house), Targets, Combat (shot validation, missiles,
+              flares and decoys, damage, breaking walls), Defenses (SAM radar and launches)
+src/client/   DroneController, CameraRig, DroneVisuals, WeaponController (incl. radar warning),
+              MissileFx (missiles, flares, explosions), Hud, Main
 tests/        Lune tests that fly the real flight and guidance code
 ```
 
@@ -109,7 +151,9 @@ lune run tests/missile
 
 They fly the drone to cruise speed and check altitude hold and tilt limits, check the
 Betaflight rate curve, send seekers at crossing, off-boresight and ground targets, fly top-attack
-shots at four ranges and check the dive angle, and exercise the ammo/reload rule.
+shots at four ranges and check the dive angle, run a SAM down a circling drone, check that a
+flare pulls a SAM off and it bursts out of blast range, check the flare path against its own
+velocity, and exercise the ammo/reload rule.
 
 ## Credits
 
@@ -120,10 +164,10 @@ shots at four ranges and check the dive angle, and exercise the ammo/reload rule
 
 ## Roadmap
 
-- **Juice pass** — goggles-style OSD, analog FPV video breakup and "signal lost" on detonation,
-  missile cam, slow-motion hit confirm
-- **Smarter targets** — evasive enemy drones, flares that decoy the seeker, turrets that shoot
-  back, destructible walls
-- **Kamikaze mode** — the original clip's detonate-on-impact run, with a terminal dive assist
-- **Showcase tools** — replay recorder with cinematic cameras, debug overlay that draws the
-  guidance vectors, settings menu with a live rate-curve graph
+- **Juice pass:** goggles-style OSD, analog video noise that builds as you fly out of range,
+  a missile cam, and slow motion on a kill
+- **Showcase tools:** a replay recorder with cinematic cameras, a debug overlay that draws the
+  guidance vectors, and a settings menu with a live rate-curve graph
+- **A game loop:** timed strike missions with a score, so a session has a start, a goal and an
+  end
+- **More threats:** an anti-aircraft gun firing tracers, for a threat flares can't stop

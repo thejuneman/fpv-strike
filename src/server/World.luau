@@ -3,8 +3,11 @@
 -- classic-brick house to fly through, plus the launch pad and the pilot's spot.
 -- build() returns the CFrame drones spawn at.
 
+local CollectionService = game:GetService("CollectionService")
+
 local World = {}
 
+local BRICK = Vector2.new(4, 3) -- largest wall brick, studs
 local ACCENT = Color3.fromRGB(62, 232, 255)
 local VERTICAL = CFrame.Angles(0, 0, math.rad(90))
 
@@ -54,8 +57,8 @@ end
 -- A flat wall in its local XY plane (x from the left edge, y up from the base) with
 -- rectangular holes {x, y, width, height}. Its outer face sits `inset` behind the origin plane
 -- and it runs `thickness` further inward (-Z); `margin` trims both ends so layers meet flush at
--- the corners. Cuts the wall on every hole edge and keeps the solid cells.
--- ponytail: one part per cell; merge cells if part count ever matters.
+-- the corners. Cuts the wall on every hole edge and lays each solid cell in bricks.
+-- ponytail: a part per brick; split cells only when a blast reaches them if part count bites.
 local function wall(origin: CFrame, width: number, height: number, holes: { Hole }, color: Color3, inset: number, thickness: number, margin: number, props: Props?)
 	local xs, ys = { margin, width - margin }, { 0, height }
 	for _, h in holes do
@@ -80,8 +83,18 @@ local function wall(origin: CFrame, width: number, height: number, holes: { Hole
 					end
 				end
 				if solid then
-					local cf = origin * CFrame.new(cx - width / 2, cy, -inset - thickness / 2)
-					block(Vector3.new(x1 - x0, y1 - y0, thickness), cf, color, props)
+					-- Laid brick by brick so explosions can knock holes in it (Combat rebuilds them).
+					local nx = math.ceil((x1 - x0) / BRICK.X - 1e-3)
+					local ny = math.ceil((y1 - y0) / BRICK.Y - 1e-3)
+					local bw, bh = (x1 - x0) / nx, (y1 - y0) / ny
+					for bx = 0, nx - 1 do
+						for by = 0, ny - 1 do
+							local cf = origin * CFrame.new(x0 + (bx + 0.5) * bw - width / 2, y0 + (by + 0.5) * bh, -inset - thickness / 2)
+							local brick = block(Vector3.new(bw, bh, thickness), cf, color, props)
+							brick:SetAttribute("Home", cf)
+							CollectionService:AddTag(brick, "Breakable")
+						end
+					end
 				end
 			end
 		end
