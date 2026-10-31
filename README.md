@@ -9,6 +9,12 @@ sites hunt you, enemy drones dodge and flare, and the house comes apart brick by
 > directed, play-tested and reviewed by me. It started as "rebuild this drone from a short clip,
 > add missiles, and make it much better."
 
+
+
+https://github.com/user-attachments/assets/a583cf6f-1c19-48cf-bceb-75f41b6c36f5
+
+
+
 ![A rocket salvo breaching the house wall](docs/gifs/breach.gif)
 
 | | |
