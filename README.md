@@ -5,6 +5,8 @@ modes, and three weapons — unguided rockets, a lock-on missile flying proporti
 and a top-attack missile — with every hit decided by the server. The range fights back: SAM
 sites hunt you, enemy drones dodge and flare, and the house comes apart brick by brick.
 
+**[Play it on Roblox](https://www.roblox.com/games/131319634104165)** (PC and console)
+
 > **Built with AI.** This project was written with Claude (Anthropic's AI) as the coding agent,
 > directed, play-tested and reviewed by me. It started as "rebuild this drone from a short clip,
 > add missiles, and make it much better."
