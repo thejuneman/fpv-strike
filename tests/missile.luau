@@ -30,7 +30,10 @@ local function fly(spec, origin, forward, targetAt: (number) -> any)
 			return false, t, s, peak -- flew into the ground
 		end
 		local target = targetAt(t)
-		if (Missile.closestOnSegment(before, s.pos, target) - target).Magnitude < (if spec.Fuse > 0 then spec.Fuse else 4) then -- 4: inside a tank hitbox
+		if
+			(Missile.closestOnSegment(before, s.pos, target) - target).Magnitude
+			< (if spec.Fuse > 0 then spec.Fuse else 4)
+		then -- 4: inside a tank hitbox
 			return true, t, s, peak
 		end
 	end

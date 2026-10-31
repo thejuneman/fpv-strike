@@ -148,7 +148,8 @@ function CameraRig:update(dt: number, ctrl, mouse: Vector2, shot)
 		targetFov = cfg.FpvFov
 	else
 		-- A spring follows the drone; capping the lag keeps a sense of speed without losing it.
-		self.focus, self.focusVelocity = Smooth.spring(self.focus, self.focusVelocity, cf.Position, cfg.FollowStiffness, dt)
+		self.focus, self.focusVelocity =
+			Smooth.spring(self.focus, self.focusVelocity, cf.Position, cfg.FollowStiffness, dt)
 		local lag = self.focus - cf.Position
 		if lag.Magnitude > cfg.MaxLag then
 			self.focus = cf.Position + lag.Unit * cfg.MaxLag

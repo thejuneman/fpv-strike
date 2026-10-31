@@ -23,7 +23,8 @@ local RED = Color3.fromRGB(255, 50, 50)
 local VERTICAL = CFrame.Angles(0, 0, math.rad(90))
 local FORWARD = CFrame.Angles(0, math.rad(90), 0)
 
-type Kind = { health: number, hitbox: Vector3, grounded: boolean, respawn: number, build: (add: Adder, root: Part) -> () }
+type Kind =
+	{ health: number, hitbox: Vector3, grounded: boolean, respawn: number, build: (add: Adder, root: Part) -> () }
 type Adder = (size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?) -> Part
 
 local KINDS: { [string]: Kind } = {
@@ -38,9 +39,20 @@ local KINDS: { [string]: Kind } = {
 			add(Vector3.new(5.2, 1.4, 0.1), CFrame.new(0, 1, -6.62), Color3.fromRGB(20, 24, 30), Enum.Material.Glass)
 			add(Vector3.new(6.2, 4.2, 8.5), CFrame.new(0, 0.7, 1.9), TARP, Enum.Material.Fabric)
 			for _, side in { -1, 1 } do
-				add(Vector3.new(0.6, 0.4, 0.1), CFrame.new(side * 2.2, -0.5, -6.62), Color3.fromRGB(255, 236, 190), Enum.Material.Neon)
+				add(
+					Vector3.new(0.6, 0.4, 0.1),
+					CFrame.new(side * 2.2, -0.5, -6.62),
+					Color3.fromRGB(255, 236, 190),
+					Enum.Material.Neon
+				)
 				for _, z in { -4.2, 0.8, 3.8 } do
-					add(Vector3.new(0.9, 2.2, 2.2), CFrame.new(side * 3.05, -1.9, z), DARK, Enum.Material.Rubber, Enum.PartType.Cylinder)
+					add(
+						Vector3.new(0.9, 2.2, 2.2),
+						CFrame.new(side * 3.05, -1.9, z),
+						DARK,
+						Enum.Material.Rubber,
+						Enum.PartType.Cylinder
+					)
 				end
 			end
 		end,
@@ -56,8 +68,20 @@ local KINDS: { [string]: Kind } = {
 				add(Vector3.new(1.6, 2.2, 13), CFrame.new(side * 4.2, -1.4, 0), DARK, Enum.Material.DiamondPlate)
 			end
 			add(Vector3.new(5.4, 1.8, 5.6), CFrame.new(0, 1.2, 0.5), OLIVE)
-			add(Vector3.new(7, 0.5, 0.5), CFrame.new(0, 1.3, -5.6) * FORWARD, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
-			add(Vector3.new(0.3, 1.2, 1.2), CFrame.new(1.2, 2.2, 1.4) * VERTICAL, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+			add(
+				Vector3.new(7, 0.5, 0.5),
+				CFrame.new(0, 1.3, -5.6) * FORWARD,
+				DARK,
+				Enum.Material.Metal,
+				Enum.PartType.Cylinder
+			)
+			add(
+				Vector3.new(0.3, 1.2, 1.2),
+				CFrame.new(1.2, 2.2, 1.4) * VERTICAL,
+				DARK,
+				Enum.Material.Metal,
+				Enum.PartType.Cylinder
+			)
 		end,
 	},
 	Drone = {
@@ -85,15 +109,33 @@ local KINDS: { [string]: Kind } = {
 			add(Vector3.new(5, 4.5, 5), CFrame.new(-2.5, -1.25, 0), OLIVE)
 			for _, x in { -1.25, 1.25 } do
 				for _, z in { -1.25, 1.25 } do
-					add(Vector3.new(0.2, 1.8, 1.8), CFrame.new(-2.5 + x, 1.05, z) * VERTICAL, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+					add(
+						Vector3.new(0.2, 1.8, 1.8),
+						CFrame.new(-2.5 + x, 1.05, z) * VERTICAL,
+						DARK,
+						Enum.Material.Metal,
+						Enum.PartType.Cylinder
+					)
 				end
 			end
 			add(Vector3.new(3, 2.5, 4), CFrame.new(3.5, -2.25, 2.5), OLIVE) -- generator
-			add(Vector3.new(7, 0.8, 0.8), CFrame.new(3.5, 0, -2.5) * VERTICAL, DARK, Enum.Material.Metal, Enum.PartType.Cylinder)
+			add(
+				Vector3.new(7, 0.8, 0.8),
+				CFrame.new(3.5, 0, -2.5) * VERTICAL,
+				DARK,
+				Enum.Material.Metal,
+				Enum.PartType.Cylinder
+			)
 			add(Vector3.new(0.7, 0.7, 0.7), CFrame.new(3.5, 3.6, -2.5), RED, Enum.Material.Neon, Enum.PartType.Ball)
 			-- The dish hangs off a Motor6D so clients can sweep it without touching the hitbox.
-			local dish = add(Vector3.new(0.4, 3.2, 5), CFrame.new(3.5, 2.6, -2.5) * CFrame.Angles(0, 0, math.rad(-20)), WHITE, Enum.Material.Metal)
-			dish:FindFirstChildOfClass("WeldConstraint"):Destroy()
+			local dish = add(
+				Vector3.new(0.4, 3.2, 5),
+				CFrame.new(3.5, 2.6, -2.5) * CFrame.Angles(0, 0, math.rad(-20)),
+				WHITE,
+				Enum.Material.Metal
+			)
+			local weld = dish:FindFirstChildOfClass("WeldConstraint") :: WeldConstraint
+			weld:Destroy()
 			local spin = Instance.new("Motor6D")
 			spin.Name = "DishSpin"
 			spin.Part0 = root

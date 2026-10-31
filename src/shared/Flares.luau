@@ -25,7 +25,14 @@ end
 
 -- A fan of flares kicked out sideways, back and down from a moving aircraft, rippled off one
 -- after another.
-function Flares.salvo(origin: Vector3, carrier: CFrame, carrierVelocity: Vector3, count: number, now: number, random: Random): { Flare }
+function Flares.salvo(
+	origin: Vector3,
+	carrier: CFrame,
+	carrierVelocity: Vector3,
+	count: number,
+	now: number,
+	random: Random
+): { Flare }
 	local list = {}
 	for i = 1, count do
 		local side = i - (count + 1) / 2

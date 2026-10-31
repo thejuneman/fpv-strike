@@ -289,7 +289,10 @@ function WeaponController:_volley(now: number)
 		if i > slot.ammo then
 			break
 		end
-		table.insert(self.queue, { weapon = self.selected, target = target, at = now + (i - 1) * (spec.Interval + 0.01) })
+		table.insert(
+			self.queue,
+			{ weapon = self.selected, target = target, at = now + (i - 1) * (spec.Interval + 0.01) }
+		)
 	end
 	self:_clearLocks()
 end

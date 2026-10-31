@@ -53,4 +53,8 @@ end
 near((v - want).Magnitude, 0, 3, "reaches cruise speed")
 near(pos.Y, 0, 4, "holds altitude while accelerating")
 assert(maxTilt <= math.rad(58), `tilt stayed under the cap ({math.deg(maxTilt)} deg)`)
-print(`flight model ok: {math.floor(v.Magnitude)} studs/s, {string.format("%.2f", pos.Y)} studs drift, {math.floor(math.deg(maxTilt))} deg max tilt`)
+print(
+	`flight model ok: {math.floor(v.Magnitude)} studs/s, {string.format("%.2f", pos.Y)} studs drift, {math.floor(
+		math.deg(maxTilt)
+	)} deg max tilt`
+)

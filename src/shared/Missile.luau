@@ -16,9 +16,10 @@ export type State = {
 	steer: Vector3?, -- the lateral acceleration it commanded
 }
 
--- The fields of Weapons.Spec this module reads.
+-- The fields of Weapons.Spec this module reads. (Guidance repeats Weapons' union: table property
+-- types must match exactly, and this module stays free of requires so Lune can load it alone.)
 type Spec = {
-	Guidance: string,
+	Guidance: "None" | "PN" | "TopAttack",
 	IgnitionDelay: number,
 	BoostTime: number,
 	BoostAccel: number,
@@ -59,7 +60,13 @@ end
 -- True proportional navigation: accelerate across the line of sight in proportion to how fast
 -- that line is turning. Holding the line of sight still means you are on a collision course,
 -- so the missile leads a moving target instead of chasing its tail.
-function Missile.proportionalNav(pos: Vector3, vel: Vector3, targetPos: Vector3, targetVel: Vector3, gain: number): Vector3
+function Missile.proportionalNav(
+	pos: Vector3,
+	vel: Vector3,
+	targetPos: Vector3,
+	targetVel: Vector3,
+	gain: number
+): Vector3
 	local r = targetPos - pos
 	local dist = r.Magnitude
 	if dist < 1e-3 then
@@ -92,7 +99,9 @@ function Missile.step(s: State, spec: Spec, dt: number, targetPos: Vector3?, tar
 			local flat = Vector3.new(toTarget.X, 0, toTarget.Z)
 			local loft = s.loft or math.min(spec.LoftHeight, flat.Magnitude * 0.35)
 			s.loft = loft
-			local shortOf = if flat.Magnitude > 1e-3 then flat.Unit * (loft / math.tan(spec.DiveAngle)) else Vector3.zero
+			local shortOf = if flat.Magnitude > 1e-3
+				then flat.Unit * (loft / math.tan(spec.DiveAngle))
+				else Vector3.zero
 			local diveStart = targetPos + Vector3.new(0, loft, 0) - shortOf
 			-- Tip over one turn radius early, or the missile sails past the dive point.
 			local turnRadius = s.vel.Magnitude ^ 2 / spec.MaxG

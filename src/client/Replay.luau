@@ -82,12 +82,41 @@ function Replay.new(drone: Model, ctrl, fx)
 	ui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local black = Color3.new(0, 0, 0)
 	local top = bar(ui, { Size = UDim2.fromScale(1, 0.1), BackgroundColor3 = black })
-	local bottom = bar(ui, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.fromScale(1, 0.1), BackgroundColor3 = black })
-	self.tag = label(top, { Position = UDim2.new(0, 28, 0.5, -10), Size = UDim2.fromOffset(140, 20), Text = "● REPLAY", TextColor3 = RED, TextXAlignment = Enum.TextXAlignment.Left })
-	self.shotLabel = label(top, { Position = UDim2.new(0, 170, 0.5, -10), Size = UDim2.fromOffset(300, 20), TextSize = 14, TextColor3 = Color3.fromRGB(180, 186, 196), TextXAlignment = Enum.TextXAlignment.Left })
-	local track = bar(bottom, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4), Size = UDim2.new(1, -56, 0, 4), BackgroundColor3 = Color3.fromRGB(50, 54, 62) })
+	local bottom = bar(ui, {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.fromScale(1, 0.1),
+		BackgroundColor3 = black,
+	})
+	self.tag = label(top, {
+		Position = UDim2.new(0, 28, 0.5, -10),
+		Size = UDim2.fromOffset(140, 20),
+		Text = "● REPLAY",
+		TextColor3 = RED,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	self.shotLabel = label(top, {
+		Position = UDim2.new(0, 170, 0.5, -10),
+		Size = UDim2.fromOffset(300, 20),
+		TextSize = 14,
+		TextColor3 = Color3.fromRGB(180, 186, 196),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local track = bar(bottom, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.new(1, -56, 0, 4),
+		BackgroundColor3 = Color3.fromRGB(50, 54, 62),
+	})
 	self.timeline = bar(track, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = RED })
-	label(bottom, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(400, 16), TextSize = 12, Text = "C next camera  ·  P exit", TextColor3 = Color3.fromRGB(150, 158, 170) })
+	label(bottom, {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.6),
+		Size = UDim2.fromOffset(400, 16),
+		TextSize = 12,
+		Text = "C next camera  ·  P exit",
+		TextColor3 = Color3.fromRGB(150, 158, 170),
+	})
 	self.ui = ui
 	return self
 end
@@ -271,7 +300,9 @@ function Replay:_camera(dt: number, at: CFrame)
 		local model = self.missiles[self.follow]
 		if model then
 			local m = model.PrimaryPart.CFrame
-			wanted, fov = CFrame.lookAt(m.Position - m.LookVector * 10 + Vector3.new(0, 2.5, 0), m.Position + m.LookVector * 30), 60
+			wanted, fov =
+				CFrame.lookAt(m.Position - m.LookVector * 10 + Vector3.new(0, 2.5, 0), m.Position + m.LookVector * 30),
+				60
 			self.lastMissileCam = wanted
 		else
 			-- The missile went off: hold where we were and watch the blast.
@@ -279,7 +310,8 @@ function Replay:_camera(dt: number, at: CFrame)
 			wanted, fov = self.lastMissileCam or cam.CFrame, 60
 			if self.head > self.lingerUntil then
 				self:nextShot()
-				return self:_camera(dt, at)
+				self:_camera(dt, at)
+				return
 			end
 		end
 	elseif self.shot == "Chase" then
@@ -300,7 +332,8 @@ function Replay:_camera(dt: number, at: CFrame)
 	else
 		-- Stay locked to the subject's position (a fast drone would leave a lagging camera far
 		-- behind) and only ease the rotation.
-		local turn = self.camCF.Rotation:Lerp(wanted.Rotation, Smooth.alpha(if self.shot == "Missile" then 20 else 6, dt))
+		local turn =
+			self.camCF.Rotation:Lerp(wanted.Rotation, Smooth.alpha(if self.shot == "Missile" then 20 else 6, dt))
 		self.camCF = CFrame.new(wanted.Position) * turn
 		self.fov = Smooth.damp(self.fov, fov, 6, dt)
 	end

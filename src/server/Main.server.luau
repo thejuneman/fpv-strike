@@ -1,6 +1,6 @@
 --!strict
--- Builds the range and its targets, gives every player a drone on the launch pad, and starts
--- the server's weapon simulation and the air defences.
+-- Builds the range and its targets, gives every player a drone on a launch pad of their own,
+-- and starts the server's weapon simulation and the air defences.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,7 +12,8 @@ local Targets = require(script.Parent.Targets)
 local Combat = require(script.Parent.Combat)
 local Defenses = require(script.Parent.Defenses)
 
-local spawnCFrame = World.build()
+local pads = World.build()
+local padOwners: { [number]: Player } = {}
 Targets.build()
 
 local drones = Instance.new("Folder")
@@ -21,8 +22,19 @@ drones.Parent = workspace
 Combat.start(drones)
 Defenses.start(drones)
 
--- ponytail: every drone spawns on the one pad; give players their own pads when multiplayer matters
+-- The first free pad. ponytail: past five players the rest share the main pad.
+local function claimPad(player: Player): CFrame
+	for i, pad in pads do
+		if not padOwners[i] then
+			padOwners[i] = player
+			return pad
+		end
+	end
+	return pads[1]
+end
+
 local function spawnDrone(player: Player)
+	local spawnCFrame = claimPad(player)
 	local drone = DroneBuilder.build()
 	drone.Name = player.Name
 	drone:SetAttribute("OwnerId", player.UserId)
@@ -57,9 +69,14 @@ for _, player in Players:GetPlayers() do
 	onPlayer(player)
 end
 
-Players.PlayerRemoving:Connect(function(player)
+Players.PlayerRemoving:Connect(function(player: Player)
 	local drone = drones:FindFirstChild(player.Name)
 	if drone then
 		drone:Destroy()
+	end
+	for i, owner in padOwners do
+		if owner == player then
+			padOwners[i] = nil
+		end
 	end
 end)

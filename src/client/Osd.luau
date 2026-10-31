@@ -19,7 +19,13 @@ local HOME = Vector3.new(0, 0, 16) -- the pilot's spot
 local MODES = { Aim = "AIM", Angle = "ANGL", Acro = "ACRO" }
 local SHORT = { Rockets = "RKT", Seeker = "SKR", TopAttack = "TOP" }
 
-local function label(parent: Instance, anchor: Vector2, position: UDim2, align: Enum.TextXAlignment, size: number?): TextLabel
+local function label(
+	parent: Instance,
+	anchor: Vector2,
+	position: UDim2,
+	align: Enum.TextXAlignment,
+	size: number?
+): TextLabel
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.AnchorPoint = anchor
@@ -145,9 +151,16 @@ function Osd:update(dt: number, ctrl, rig, weapons, link)
 
 	local name = weapons.selected
 	local health = ctrl.drone:GetAttribute("Health") or Config.Health
-	self.arms.Text = string.format("%s %d  FLR %d  HP %d", SHORT[name], weapons.slots[name].ammo, weapons.slots.Flares.ammo, math.ceil(health))
+	self.arms.Text = string.format(
+		"%s %d  FLR %d  HP %d",
+		SHORT[name],
+		weapons.slots[name].ammo,
+		weapons.slots.Flares.ammo,
+		math.ceil(health)
+	)
 
-	local warning = if link.failsafe then "FAILSAFE"
+	local warning = if link.failsafe
+		then "FAILSAFE"
 		elseif weapons.threat == "MISSILE" then "MISSILE"
 		elseif link.quality < 0.3 then "LQ LOW"
 		elseif ctrl.battery < 0.2 then "LOW BATTERY"

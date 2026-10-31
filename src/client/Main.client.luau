@@ -53,8 +53,24 @@ local hud = Hud.new()
 local overlay = DebugOverlay.new(controller, fx, link)
 local replay = Replay.new(drone, controller, fx)
 local settings = Settings.new({
-	{ label = "Debug overlay (F2)", get = function() return overlay.enabled end, flip = function() overlay:toggle() end },
-	{ label = "Missile cam (V)", get = function() return rig.missileCam end, flip = function() rig:toggleMissileCam() end },
+	{
+		label = "Debug overlay (F2)",
+		get = function()
+			return overlay.enabled
+		end,
+		flip = function()
+			overlay:toggle()
+		end,
+	},
+	{
+		label = "Missile cam (V)",
+		get = function()
+			return rig.missileCam
+		end,
+		flip = function()
+			rig:toggleMissileCam()
+		end,
+	},
 })
 
 -- A missile-cam kill gets the kill cam: the camera hangs round the wreck in slow motion.
@@ -101,6 +117,9 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		return
 	elseif code == Enum.KeyCode.F2 then
 		overlay:toggle()
+		return
+	elseif code == Enum.KeyCode.H then
+		hud:toggleHelp()
 		return
 	end
 

@@ -106,7 +106,8 @@ local function breakWalls(at: Vector3, radius: number)
 		if brick.Anchored and CollectionService:HasTag(brick, "Breakable") then
 			local away = brick.Position - at
 			brick.Anchored = false
-			brick.AssemblyLinearVelocity = (if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis) * random:NextNumber(30, 80)
+			brick.AssemblyLinearVelocity = (if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis)
+					* random:NextNumber(30, 80)
 				+ Vector3.new(0, 20, 0)
 			brick.AssemblyAngularVelocity = random:NextUnitVector() * 6
 			task.delay(WALL_REBUILD + random:NextNumber(0, 3), function()
@@ -174,7 +175,8 @@ local function detonate(f: Flight, at: Vector3)
 end
 
 local function addSalvo(id: string, list: { Flares.Flare }, carrier: Model, chance: number)
-	salvos[id] = { list = list, carrier = carrier, chance = chance, burnout = list[#list].born + Flares.Burn, tried = {} }
+	salvos[id] =
+		{ list = list, carrier = carrier, chance = chance, burnout = list[#list].born + Flares.Burn, tried = {} }
 end
 
 -- A missile homing on whoever dropped a salvo gets one roll against it, the first moment a
@@ -195,7 +197,12 @@ local function decoys(now: number)
 			for index, flare in salvo.list do
 				local age = now - flare.born
 				local toFlare = Flares.at(flare, now) - f.state.pos
-				if age >= 0 and age < Flares.Burn and toFlare.Magnitude < cfg.Range and toFlare.Unit:Dot(f.state.forward) > math.cos(cfg.Cone) then
+				if
+					age >= 0
+					and age < Flares.Burn
+					and toFlare.Magnitude < cfg.Range
+					and toFlare.Unit:Dot(f.state.forward) > math.cos(cfg.Cone)
+				then
 					salvo.tried[f.id] = true
 					if random:NextNumber() < salvo.chance then
 						f.decoy = flare
@@ -219,7 +226,14 @@ local function evade(target: Model, now: number)
 	local root = target.PrimaryPart :: BasePart
 	enemyShots += 1
 	local id = `t{enemyShots}`
-	local list = Flares.salvo(root.Position, root.CFrame, TargetPaths.velocity(target, now), Weapons.Flares.PerSalvo, now, random)
+	local list = Flares.salvo(
+		root.Position,
+		root.CFrame,
+		TargetPaths.velocity(target, now),
+		Weapons.Flares.PerSalvo,
+		now,
+		random
+	)
 	addSalvo(id, list, target, Weapons.Flares.EnemyDecoy)
 	missileRemote:FireAllClients("flares", id, list)
 end
@@ -238,7 +252,8 @@ local function aim(f: Flight, now: number): (Vector3?, Vector3?)
 		local target = f.target
 		local keep = target ~= nil
 			and alive(target)
-			and ((target.PrimaryPart :: BasePart).Position - f.state.pos).Unit:Dot(f.state.forward) > math.cos(REACQUIRE_CONE)
+			and ((target.PrimaryPart :: BasePart).Position - f.state.pos).Unit:Dot(f.state.forward)
+				> math.cos(REACQUIRE_CONE)
 		if not keep then
 			f.target = nil
 		end
@@ -252,7 +267,14 @@ local function aim(f: Flight, now: number): (Vector3?, Vector3?)
 	return f.lastSeen, if f.lastSeen then Vector3.zero else nil -- target gone: fly to where it was
 end
 
-local function onFire(player: Player, name: unknown, shotId: unknown, origin: unknown, direction: unknown, target: unknown)
+local function onFire(
+	player: Player,
+	name: unknown,
+	shotId: unknown,
+	origin: unknown,
+	direction: unknown,
+	target: unknown
+)
 	-- Everything from the client is untrusted: check types, NaNs and ranges before use.
 	if typeof(name) ~= "string" or not table.find(Weapons.Order, name) then
 		return -- also keeps players off enemy-only specs
@@ -317,7 +339,11 @@ local function onAction(player: Player, action: unknown, a: unknown, b: unknown,
 
 	if action == "detonate" then
 		-- Go off where the pilot saw it, if that's plausibly where we think the drone is.
-		local at = if typeof(a) == "Vector3" and a == a and (a - root.Position).Magnitude < slack then a else root.Position
+		local at = if typeof(a) == "Vector3"
+				and a == a
+				and (a - root.Position).Magnitude < slack
+			then a
+			else root.Position
 		down(drone)
 		explode(`{player.UserId}:kamikaze`, at, Weapons.Kamikaze, player)
 	elseif action == "flares" then
@@ -379,14 +405,22 @@ local function step(dt: number)
 		local s = f.state
 		local aimPos, aimVel = aim(f, now)
 		local target = f.target
-		if f.owner and target and not f.decoy and target:GetAttribute("Kind") == "Drone" and aimPos and (aimPos - s.pos).Magnitude < BREAK_RANGE then
+		if
+			f.owner
+			and target
+			and not f.decoy
+			and target:GetAttribute("Kind") == "Drone"
+			and aimPos
+			and (aimPos - s.pos).Magnitude < BREAK_RANGE
+		then
 			evade(target, now)
 		end
 
 		local before = s.pos
 		Missile.step(s, f.spec, dt, aimPos, aimVel)
 		local travel = s.pos - before
-		rayParams.FilterDescendantsInstances = { (if f.owner then drones:FindFirstChild(f.owner.Name) else f.launcher) :: Instance }
+		rayParams.FilterDescendantsInstances =
+			{ (if f.owner then drones:FindFirstChild(f.owner.Name) else f.launcher) :: Instance }
 		local impact = if s.age > ARM_TIME and travel.Magnitude > 1e-3
 			then workspace:Spherecast(before, 0.5, travel, rayParams)
 			else nil

@@ -132,6 +132,10 @@ whose sound arrives at the speed of sound, trauma-based camera shake, and hit ma
 
 ## Controls
 
+New players get a controls card on joining; it clears when they launch, and H brings it back.
+
+![The controls card](docs/screenshots/controls-card.jpg)
+
 | | Keyboard + mouse | Gamepad |
 |---|---|---|
 | Aim / steer | Mouse | Right stick |
@@ -149,10 +153,13 @@ whose sound arrives at the speed of sound, trauma-based camera shake, and hit ma
 | Settings | M | |
 | Debug overlay | F2 | |
 | Reset to pad | Backspace | D-pad down |
+| Controls card | H | |
 
 Hold fire for rockets. For the seeker and top-attack, keep a target near the reticle until its
 diamond turns red, then fire. The SAM sites (amber markers) sit past the range; "RADAR LOCK"
 means one is about to fire, "MISSILE" means it has.
+
+Up to five players each get a launch pad of their own.
 
 ## Project layout
 
@@ -174,7 +181,12 @@ diffs cleanly in Git. All tuning lives in `Config.luau` and `Weapons.luau`.
 
 ## Running it
 
-Needs [Rojo 7](https://rojo.space) and Roblox Studio.
+Needs Roblox Studio. The toolchain (Rojo, Lune, Selene, StyLua, luau-lsp) is pinned in
+`rokit.toml`; install it with [Rokit](https://github.com/rojo-rbx/rokit):
+
+```bash
+rokit install
+```
 
 ```bash
 rojo serve
@@ -198,6 +210,17 @@ Betaflight rate curve, send seekers at crossing, off-boresight and ground target
 shots at four ranges and check the dive angle, run a SAM down a circling drone, check that a
 flare pulls a SAM off and it bursts out of blast range, check the flare path against its own
 velocity, and exercise the ammo/reload rule.
+
+The code is linted with Selene, formatted with StyLua, and type-checked with luau-lsp against
+Roblox's API definitions (several modules run in `--!strict`). All of it comes back clean:
+
+```bash
+selene src
+```
+
+```bash
+stylua --check src tests
+```
 
 ## Credits
 

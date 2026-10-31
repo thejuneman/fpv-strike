@@ -30,8 +30,38 @@ local HINTS = {
 	Angle = "WASD tilt · MOUSE or Q/E yaw · SPACE/CTRL climb",
 	Acro = "MOUSE pitch/roll · A/D yaw · W/S throttle · SHIFT full",
 }
-local COMMON = " · LMB fire · 1-3 weapon · G flares · R detonate · T mode · F camera · V missile cam · BACKSPACE reset"
-	.. "\nP replay · M settings · F2 debug overlay"
+local COMMON = " · LMB fire · H controls"
+
+-- The controls card: up when you join, gone once you launch, back on H.
+local HELP = {
+	{
+		"FLY",
+		{
+			{ "Mouse", "aim" },
+			{ "W A S D", "move" },
+			{ "Space / Ctrl", "up, down" },
+			{ "Shift", "boost" },
+			{ "T", "flight mode: Aim, Angle, Acro" },
+		},
+	},
+	{
+		"FIGHT",
+		{
+			{ "Left mouse", "fire" },
+			{ "1 2 3", "rockets, seeker, top-attack" },
+			{ "G", "flares" },
+			{ "R", "detonate the drone" },
+		},
+	},
+	{
+		"VIEW",
+		{ { "F", "chase, FPV or orbit camera" }, { "V", "missile cam" }, { "P", "replay the last 20 seconds" } },
+	},
+	{
+		"MORE",
+		{ { "M", "settings" }, { "F2", "debug overlay" }, { "Backspace", "back to the pad" }, { "H", "this card" } },
+	},
+}
 local STATIC_ROWS, STATIC_COLS = 48, 3
 
 local function make(className: string, props: { [string]: any }, parent: Instance?): any
@@ -62,7 +92,11 @@ local function text(parent: Instance, props: { [string]: any }): TextLabel
 end
 
 local function panel(parent: Instance, props: { [string]: any }): Frame
-	local frame = make("Frame", { BackgroundColor3 = Color3.fromRGB(8, 10, 14), BackgroundTransparency = 0.35, BorderSizePixel = 0 }, parent)
+	local frame = make(
+		"Frame",
+		{ BackgroundColor3 = Color3.fromRGB(8, 10, 14), BackgroundTransparency = 0.35, BorderSizePixel = 0 },
+		parent
+	)
 	round(frame, UDim.new(0, 6))
 	make("UIStroke", { Color = ACCENT, Transparency = 0.75 }, frame)
 	for k, v in props do
@@ -81,13 +115,35 @@ function Hud.new()
 	}, Players.LocalPlayer:WaitForChild("PlayerGui"))
 
 	local top = panel(gui, { Position = UDim2.fromOffset(16, 16), Size = UDim2.fromOffset(260, 30) })
-	self.status = text(top, { Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -24, 1, 0), FontFace = BOLD, TextColor3 = ACCENT })
+	self.status = text(
+		top,
+		{ Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -24, 1, 0), FontFace = BOLD, TextColor3 = ACCENT }
+	)
 
-	local title = panel(gui, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16), Size = UDim2.fromOffset(210, 46) })
-	text(title, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Text = "FPV STRIKE", FontFace = BOLD, TextSize = 16, TextColor3 = ACCENT })
-	text(title, { Position = UDim2.fromOffset(12, 25), Size = UDim2.new(1, -24, 0, 14), Text = "flight model · PN guidance", TextSize = 11, TextColor3 = DIM })
+	local title = panel(
+		gui,
+		{ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16), Size = UDim2.fromOffset(210, 46) }
+	)
+	text(title, {
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(1, -24, 0, 18),
+		Text = "FPV STRIKE",
+		FontFace = BOLD,
+		TextSize = 16,
+		TextColor3 = ACCENT,
+	})
+	text(title, {
+		Position = UDim2.fromOffset(12, 25),
+		Size = UDim2.new(1, -24, 0, 14),
+		Text = "flight model · PN guidance",
+		TextSize = 11,
+		TextColor3 = DIM,
+	})
 
-	local tele = panel(gui, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -16), Size = UDim2.fromOffset(200, 126) })
+	local tele = panel(
+		gui,
+		{ AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -16), Size = UDim2.fromOffset(200, 126) }
+	)
 	self.telemetry = text(tele, {
 		Position = UDim2.fromOffset(12, 8),
 		Size = UDim2.new(1, -24, 0, 90),
@@ -102,7 +158,8 @@ function Hud.new()
 		BorderSizePixel = 0,
 	}, tele)
 	round(barBack)
-	self.throttleBar = make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, barBack)
+	self.throttleBar =
+		make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, barBack)
 	round(self.throttleBar)
 
 	self.hints = text(gui, {
@@ -129,7 +186,11 @@ function Hud.new()
 	})
 
 	-- Where the mouse is aiming
-	self.reticle = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(28, 28), BackgroundTransparency = 1 }, gui)
+	self.reticle = make(
+		"Frame",
+		{ AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(28, 28), BackgroundTransparency = 1 },
+		gui
+	)
 	round(self.reticle)
 	make("UIStroke", { Color = ACCENT, Thickness = 1.5, Transparency = 0.1 }, self.reticle)
 	local dot = make("Frame", {
@@ -142,7 +203,11 @@ function Hud.new()
 	round(dot)
 
 	-- Where the drone is actually going (flight-path marker, as on a jet's HUD)
-	self.flightPath = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(12, 12), BackgroundTransparency = 1 }, gui)
+	self.flightPath = make(
+		"Frame",
+		{ AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(12, 12), BackgroundTransparency = 1 },
+		gui
+	)
 	round(self.flightPath)
 	make("UIStroke", { Color = WHITE, Thickness = 1.5, Transparency = 0.2 }, self.flightPath)
 	local function tick(position: UDim2, size: Vector2, anchor: Vector2)
@@ -182,14 +247,28 @@ function Hud.new()
 			BorderSizePixel = 0,
 		}, row)
 		self.rows[name] = {
-			label = text(row, { Size = UDim2.new(1, 0, 0, 16), Text = if spec then `{i}  {spec.Label}` else "G  FLARES" }),
-			ammo = text(row, { Size = UDim2.new(1, 0, 0, 16), TextXAlignment = Enum.TextXAlignment.Right, FontFace = BOLD }),
-			fill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, back),
+			label = text(
+				row,
+				{ Size = UDim2.new(1, 0, 0, 16), Text = if spec then `{i}  {spec.Label}` else "G  FLARES" }
+			),
+			ammo = text(
+				row,
+				{ Size = UDim2.new(1, 0, 0, 16), TextXAlignment = Enum.TextXAlignment.Right, FontFace = BOLD }
+			),
+			fill = make(
+				"Frame",
+				{ Size = UDim2.fromScale(1, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 },
+				back
+			),
 		}
 	end
 
 	-- Seeker field of view, sized from the cone angle so it matches what can actually lock
-	self.seeker = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1 }, gui)
+	self.seeker = make(
+		"Frame",
+		{ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1 },
+		gui
+	)
 	round(self.seeker)
 	make("UIStroke", { Color = ACCENT, Thickness = 1, Transparency = 0.6 }, self.seeker)
 	self.lockCount = text(self.seeker, {
@@ -250,7 +329,13 @@ function Hud.new()
 	self.hurtAt = -math.huge
 
 	-- Analog video breakup when the drone is lost: rows of noise blocks that roll and tear.
-	self.static = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(14, 14, 16), BorderSizePixel = 0, Visible = false, ZIndex = 50 }, gui)
+	self.static = make("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(14, 14, 16),
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 50,
+	}, gui)
 	self.bands = {}
 	for _ = 1, STATIC_ROWS * STATIC_COLS do
 		table.insert(self.bands, make("Frame", { BorderSizePixel = 0, ZIndex = 51 }, self.static))
@@ -269,17 +354,25 @@ function Hud.new()
 	self.staticFrom, self.staticUntil = 0, 0
 
 	-- Hit marker: four ticks round the centre, white for a hit, red and bigger for a kill.
-	self.hit = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Visible = false }, gui)
+	self.hit = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Visible = false,
+	}, gui)
 	self.hitTicks = {}
 	for i = 0, 3 do
 		local angle = math.rad(45 + 90 * i)
-		table.insert(self.hitTicks, make("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5 + math.cos(angle) * 0.5, 0, 0.5 + math.sin(angle) * 0.5, 0),
-			Size = UDim2.fromOffset(12, 3),
-			Rotation = math.deg(angle),
-			BorderSizePixel = 0,
-		}, self.hit))
+		table.insert(
+			self.hitTicks,
+			make("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5 + math.cos(angle) * 0.5, 0.5 + math.sin(angle) * 0.5),
+				Size = UDim2.fromOffset(12, 3),
+				Rotation = math.deg(angle),
+				BorderSizePixel = 0,
+			}, self.hit)
+		)
 	end
 
 	self.camLabel = text(gui, {
@@ -294,11 +387,69 @@ function Hud.new()
 		TextColor3 = WARN,
 	})
 
+	self.help = panel(gui, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.fromOffset(640, 330),
+		BackgroundTransparency = 0.12,
+		ZIndex = 20, -- above the target markers
+	})
+	text(self.help, {
+		Position = UDim2.fromOffset(28, 22),
+		Size = UDim2.fromOffset(300, 24),
+		Text = "FPV STRIKE",
+		FontFace = BOLD,
+		TextSize = 22,
+		TextColor3 = ACCENT,
+	})
+	text(self.help, {
+		Position = UDim2.fromOffset(28, 50),
+		Size = UDim2.new(1, -56, 0, 18),
+		Text = "Fly a strike drone with real flight physics. Lock on, fire, and keep clear of the SAM sites.",
+		TextColor3 = DIM,
+		TextSize = 13,
+	})
+	for i, group in HELP do
+		local column = make("Frame", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(28 + ((i - 1) % 2) * 300, 86 + (i - 1) // 2 * 116),
+			Size = UDim2.fromOffset(290, 110),
+		}, self.help)
+		text(
+			column,
+			{ Size = UDim2.new(1, 0, 0, 16), Text = group[1], FontFace = BOLD, TextSize = 13, TextColor3 = ACCENT }
+		)
+		for j, line in group[2] do
+			text(column, {
+				Position = UDim2.fromOffset(0, 2 + j * 17),
+				Size = UDim2.new(1, 0, 0, 16),
+				RichText = true,
+				TextSize = 13,
+				Text = `<b>{line[1]}</b>  <font color="#969eaa">{line[2]}</font>`,
+			})
+		end
+	end
+	text(self.help, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -16),
+		Size = UDim2.fromOffset(400, 18),
+		Text = "SPACE to launch  ·  H to hide",
+		TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = BOLD,
+		TextSize = 14,
+		TextColor3 = ACCENT,
+	})
+	self.launched = false
+
 	self.osd = Osd.new(gui)
 	self.panels = { top, title, tele, arms, self.hints }
 	self.gui = gui
 	self.markers = {}
 	return self
+end
+
+function Hud:toggleHelp()
+	self.help.Visible = not self.help.Visible
 end
 
 function Hud:signalLost(seconds: number)
@@ -395,8 +546,16 @@ function Hud:_marker(target: Model)
 	if m then
 		return m
 	end
-	local holder = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(80, 80), BackgroundTransparency = 1 }, self.gui)
-	local box = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1 }, holder)
+	local holder = make(
+		"Frame",
+		{ AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(80, 80), BackgroundTransparency = 1 },
+		self.gui
+	)
+	local box = make(
+		"Frame",
+		{ AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1 },
+		holder
+	)
 	local barBack = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0.5, 22),
@@ -510,6 +669,10 @@ function Hud:update(dt: number, ctrl, rig, weapons, link)
 		p.Visible = not fpv
 	end
 	self.camLabel.Visible = rig.watching and math.floor(os.clock() * 2) % 2 == 0
+	if ctrl.armed and not self.launched then
+		self.launched = true
+		self.help.Visible = false -- first launch: they've read it
+	end
 	local bat = Config.Battery
 	local volts = bat.EmptyVolts + (bat.FullVolts - bat.EmptyVolts) * ctrl.battery - bat.SagVolts * ctrl.throttle
 	local v = ctrl.root.AssemblyLinearVelocity

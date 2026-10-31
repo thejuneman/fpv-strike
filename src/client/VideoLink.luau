@@ -41,7 +41,8 @@ function VideoLink:update(dt: number)
 
 	-- A wall between pilot and drone soaks up signal. Hits right next to the drone (the pad
 	-- it's sitting on) don't count.
-	self.ray.FilterDescendantsInstances = { workspace:FindFirstChild("Drones"), workspace:FindFirstChild("MissileFx"), character }
+	self.ray.FilterDescendantsInstances =
+		{ workspace:FindFirstChild("Drones"), workspace:FindFirstChild("MissileFx"), character }
 	local hit = workspace:Raycast(pilot, offset, self.ray)
 	self.blocked = hit ~= nil and hit.Distance < self.distance - 3
 

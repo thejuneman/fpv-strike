@@ -24,11 +24,40 @@ local TEXTURES = "rbxasset://textures/particles/"
 local random = Random.new()
 
 local LOOKS = {
-	Rockets = { length = 1.2, diameter = 0.22, body = Color3.fromRGB(200, 202, 208), nose = Color3.fromRGB(60, 62, 70), smoke = 0.7, flame = 0.35 },
-	Seeker = { length = 2.2, diameter = 0.32, body = Color3.fromRGB(236, 236, 240), nose = Color3.fromRGB(226, 52, 64), smoke = 2.2, flame = 0.55 },
-	TopAttack = { length = 2.6, diameter = 0.42, body = Color3.fromRGB(96, 104, 70), nose = Color3.fromRGB(40, 42, 38), smoke = 2.8, flame = 0.6 },
+	Rockets = {
+		length = 1.2,
+		diameter = 0.22,
+		body = Color3.fromRGB(200, 202, 208),
+		nose = Color3.fromRGB(60, 62, 70),
+		smoke = 0.7,
+		flame = 0.35,
+	},
+	Seeker = {
+		length = 2.2,
+		diameter = 0.32,
+		body = Color3.fromRGB(236, 236, 240),
+		nose = Color3.fromRGB(226, 52, 64),
+		smoke = 2.2,
+		flame = 0.55,
+	},
+	TopAttack = {
+		length = 2.6,
+		diameter = 0.42,
+		body = Color3.fromRGB(96, 104, 70),
+		nose = Color3.fromRGB(40, 42, 38),
+		smoke = 2.8,
+		flame = 0.6,
+	},
 	-- A fat, lingering smoke column so you can see a SAM coming from far off.
-	SAM = { length = 3.4, diameter = 0.5, body = Color3.fromRGB(214, 208, 192), nose = Color3.fromRGB(70, 72, 60), smoke = 5, flame = 0.8, trail = 1.6 },
+	SAM = {
+		length = 3.4,
+		diameter = 0.5,
+		body = Color3.fromRGB(214, 208, 192),
+		nose = Color3.fromRGB(70, 72, 60),
+		smoke = 5,
+		flame = 0.8,
+		trail = 1.6,
+	},
 }
 
 local function part(props: { [string]: any }): Part
@@ -84,7 +113,13 @@ local function template(name: string): Model
 		return p
 	end
 
-	add({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(look.length, d, d), CFrame = FORWARD, Color = look.body, Material = Enum.Material.Metal })
+	add({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(look.length, d, d),
+		CFrame = FORWARD,
+		Color = look.body,
+		Material = Enum.Material.Metal,
+	})
 	add({ Shape = Enum.PartType.Ball, Size = Vector3.one * d, CFrame = CFrame.new(0, 0, -half), Color = look.nose })
 	for i = 0, 3 do
 		local cf = CFrame.new(0, 0, half - d * 0.6) * CFrame.Angles(0, 0, i * math.pi / 2) * CFrame.new(d * 0.8, 0, 0)
@@ -147,7 +182,15 @@ function MissileFx.new(onExplosion: (Vector3, number) -> ())
 end
 
 -- `predict` is for your own shots: draw their impacts without waiting for the server.
-function MissileFx:spawn(id: string, name: string, origin: Vector3, velocity: Vector3, direction: Vector3, target: Model?, predict: boolean?)
+function MissileFx:spawn(
+	id: string,
+	name: string,
+	origin: Vector3,
+	velocity: Vector3,
+	direction: Vector3,
+	target: Model?,
+	predict: boolean?
+)
 	if self.flights[id] then
 		return
 	end
@@ -190,7 +233,14 @@ function MissileFx:flares(id: string, list: { Flares.Flare })
 	end
 	local balls = {}
 	for i, flare in list do
-		local ball = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 1.2, CFrame = CFrame.new(flare.origin), Color = Color3.fromRGB(255, 240, 210), Material = Enum.Material.Neon, Transparency = 1 })
+		local ball = part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 1.2,
+			CFrame = CFrame.new(flare.origin),
+			Color = Color3.fromRGB(255, 240, 210),
+			Material = Enum.Material.Neon,
+			Transparency = 1,
+		})
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 200, 140)
 		light.Range = 24
@@ -251,7 +301,7 @@ function MissileFx:threat(drone: Model): Vector3?
 	local best, bestDist = nil, math.huge
 	for _, f in self.flights do
 		if not f.done and f.target == drone and not f.decoy then
-			local dist = (f.state.pos - drone.PrimaryPart.Position).Magnitude
+			local dist = (f.state.pos - (drone.PrimaryPart :: BasePart).Position).Magnitude
 			if dist < bestDist then
 				best, bestDist = f.state.pos, dist
 			end
@@ -310,7 +360,13 @@ function MissileFx:update(dt: number)
 		local aimPos, aimVel = nil, nil
 		if f.decoy then
 			aimPos, aimVel = Flares.at(f.decoy, now), Flares.velocity(f.decoy, now)
-		elseif target and target.Parent and target.PrimaryPart and target:GetAttribute("Health") > 0 and not target:GetAttribute("Down") then
+		elseif
+			target
+			and target.Parent
+			and target.PrimaryPart
+			and target:GetAttribute("Health") > 0
+			and not target:GetAttribute("Down")
+		then
 			f.lastSeen = target.PrimaryPart.Position
 			aimPos, aimVel = f.lastSeen, TargetPaths.velocity(target, now)
 		elseif f.lastSeen then
@@ -329,7 +385,9 @@ function MissileFx:update(dt: number)
 		-- Predict the impact so the shooter sees it now rather than a round trip later. Anyone
 		-- else's missile (a SAM coming for you) just stops there and waits for the server's boom.
 		local travel = s.pos - before
-		local hit = if s.age > 0.1 and travel.Magnitude > 1e-3 then workspace:Spherecast(before, 0.5, travel, self.ray) else nil
+		local hit = if s.age > 0.1 and travel.Magnitude > 1e-3
+			then workspace:Spherecast(before, 0.5, travel, self.ray)
+			else nil
 		local at = hit and hit.Position
 		if not at and aimPos and f.spec.Fuse > 0 then
 			local closest = Missile.closestOnSegment(before, s.pos, aimPos)
@@ -341,9 +399,7 @@ function MissileFx:update(dt: number)
 			f.predicted = at
 			self:_retire(f)
 			self:explode(at, f.spec.BlastRadius)
-		elseif at then
-			self:_retire(f)
-		elseif s.age > f.spec.Lifetime + 1 then
+		elseif at or s.age > f.spec.Lifetime + 1 then
 			self:_retire(f)
 		end
 	end
@@ -390,13 +446,27 @@ function MissileFx:explode(at: Vector3, radius: number)
 	holder:SetAttribute("Blast", true)
 	holder.Parent = self.folder
 
-	local flash = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * radius * 0.5, CFrame = CFrame.new(at), Color = Color3.fromRGB(255, 214, 150), Material = Enum.Material.Neon, Transparency = 0.1 })
+	local flash = part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * radius * 0.5,
+		CFrame = CFrame.new(at),
+		Color = Color3.fromRGB(255, 214, 150),
+		Material = Enum.Material.Neon,
+		Transparency = 0.1,
+	})
 	flash.Parent = holder
 	tween(flash, 0.3, { Size = Vector3.one * radius * 1.2, Transparency = 1 })
 
 	-- Shockwave ring only for missile-sized blasts; a rocket salvo would stack into a white disc.
 	if radius >= 12 then
-		local ring = part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, radius * 0.6, radius * 0.6), CFrame = CFrame.new(at) * VERTICAL, Color = Color3.fromRGB(255, 240, 220), Material = Enum.Material.Neon, Transparency = 0.45 })
+		local ring = part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.2, radius * 0.6, radius * 0.6),
+			CFrame = CFrame.new(at) * VERTICAL,
+			Color = Color3.fromRGB(255, 240, 220),
+			Material = Enum.Material.Neon,
+			Transparency = 0.45,
+		})
 		ring.Parent = holder
 		tween(ring, 0.45, { Size = Vector3.new(0.2, radius * 3.5, radius * 3.5), Transparency = 1 })
 	end
@@ -459,11 +529,16 @@ function MissileFx:explode(at: Vector3, radius: number)
 
 	-- A few chunks thrown out (client-only physics)
 	for _ = 1, math.round(radius / 3) do
-		local chunk = part({ Size = Vector3.one * random:NextNumber(0.3, 0.8), CFrame = CFrame.new(at), Color = Color3.fromRGB(40, 38, 36) })
+		local chunk = part({
+			Size = Vector3.one * random:NextNumber(0.3, 0.8),
+			CFrame = CFrame.new(at),
+			Color = Color3.fromRGB(40, 38, 36),
+		})
 		chunk.Anchored = false
 		chunk.CanCollide = true
 		chunk.Parent = self.folder
-		chunk.AssemblyLinearVelocity = random:NextUnitVector() * random:NextNumber(radius * 3, radius * 6) + Vector3.new(0, radius * 3, 0)
+		chunk.AssemblyLinearVelocity = random:NextUnitVector() * random:NextNumber(radius * 3, radius * 6)
+			+ Vector3.new(0, radius * 3, 0)
 		chunk.AssemblyAngularVelocity = random:NextUnitVector() * 20
 		Debris:AddItem(chunk, 3)
 	end

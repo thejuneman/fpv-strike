@@ -1,0 +1,9 @@
+# Toolchain for this project, pinned so every machine and CI run uses the same versions.
+# Install with `rokit install`.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+lune = "lune-org/lune@0.11.1"
+selene = "kampfkarren/selene@0.32.0"
+stylua = "johnnymorganz/stylua@2.6.0"
+luau-lsp = "johnnymorganz/luau-lsp@1.70.1"

@@ -135,7 +135,8 @@ end
 function Controller:_aim(dt, mouse: Vector2, kb, pad, cf: CFrame, v: Vector3, maxThrust: number)
 	local cfg = Config.Aim
 	self.aimYaw -= mouse.X * cfg.MouseSensitivity + pad.right.X * cfg.StickYaw * dt
-	self.aimPitch = math.clamp(self.aimPitch - mouse.Y * cfg.MouseSensitivity + pad.right.Y * cfg.StickPitch * dt, -1.35, 1.35)
+	self.aimPitch =
+		math.clamp(self.aimPitch - mouse.Y * cfg.MouseSensitivity + pad.right.Y * cfg.StickPitch * dt, -1.35, 1.35)
 
 	local forward = math.clamp(kb.forward + pad.left.Y, -1, 1)
 	local side = math.clamp(kb.side + pad.left.X, -1, 1)
@@ -171,7 +172,7 @@ function Controller:_angle(dt, mouse: Vector2, kb, pad, cf: CFrame, v: Vector3, 
 	local target = CFrame.Angles(0, self.headingYaw, 0)
 	if stick.Magnitude > 1e-3 then
 		local toward = Vector3.new(stick.X, 0, -stick.Y)
-		target *= CFrame.fromAxisAngle(Vector3.yAxis:Cross(toward).Unit, stick.Magnitude * cfg.MaxTilt)
+		target *= CFrame.fromAxisAngle(-toward:Cross(Vector3.yAxis).Unit, stick.Magnitude * cfg.MaxTilt)
 	end
 
 	-- Altitude hold: throttle chases a climb rate, compensating for tilt and drag.
@@ -227,7 +228,11 @@ function Controller:step(dt: number, mouse: Vector2)
 	if self.failsafe then
 		self.armed = false -- failsafe: the motors cut and the quad drops
 	end
-	if not self.armed and not down and (kb.vertical > 0 or kb.forward > 0 or pad.rt > 0.2 or pad.left.Magnitude > 0.3) then
+	if
+		not self.armed
+		and not down
+		and (kb.vertical > 0 or kb.forward > 0 or pad.rt > 0.2 or pad.left.Magnitude > 0.3)
+	then
 		self.armed = true
 	end
 	-- A hard hit kills the motors for a moment and lets the quad tumble.

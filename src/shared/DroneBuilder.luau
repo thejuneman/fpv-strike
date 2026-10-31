@@ -82,7 +82,14 @@ function DroneBuilder.build(): Model
 	model.PrimaryPart = root
 
 	local welded: { BasePart } = {}
-	local function add(name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?, shape: Enum.PartType?): Part
+	local function add(
+		name: string,
+		size: Vector3,
+		cf: CFrame,
+		color: Color3,
+		material: Enum.Material?,
+		shape: Enum.PartType?
+	): Part
 		local p = newPart(model, name, size, cf, color, material, shape)
 		table.insert(welded, p)
 		return p
@@ -97,7 +104,13 @@ function DroneBuilder.build(): Model
 			add("Standoff", Vector3.new(0.27, 0.08, 0.08), cf, ANODIZED, Enum.Material.Metal, Enum.PartType.Cylinder)
 		end
 	end
-	add("StatusLed", Vector3.new(0.08, 0.03, 0.08), CFrame.new(0.32, 0.245, -0.52), Color3.fromRGB(80, 255, 120), Enum.Material.Neon)
+	add(
+		"StatusLed",
+		Vector3.new(0.08, 0.03, 0.08),
+		CFrame.new(0.32, 0.245, -0.52),
+		Color3.fromRGB(80, 255, 120),
+		Enum.Material.Neon
+	)
 
 	-- Arms, motors and props
 	for _, m in DroneBuilder.Motors do
@@ -106,19 +119,61 @@ function DroneBuilder.build(): Model
 		local armCf = CFrame.new(motorPos * Vector3.new(0.5, 1, 0.5)) * CFrame.Angles(0, math.atan2(m.x, m.z), 0)
 		add(m.name .. "Arm", Vector3.new(0.3, 0.1, armLength + 0.2), armCf, CARBON)
 		local ledColor = if m.z < 0 then ACCENT else REAR_LIGHT
-		add(m.name .. "Led", Vector3.new(0.08, 0.04, armLength * 0.6), armCf * CFrame.new(0, -0.07, 0), ledColor, Enum.Material.Neon)
+		add(
+			m.name .. "Led",
+			Vector3.new(0.08, 0.04, armLength * 0.6),
+			armCf * CFrame.new(0, -0.07, 0),
+			ledColor,
+			Enum.Material.Neon
+		)
 
 		local function at(y: number): CFrame
 			return CFrame.new(motorPos + Vector3.new(0, y, 0)) * VERTICAL
 		end
-		add(m.name .. "Stator", Vector3.new(0.08, 0.5, 0.5), at(0.09), CARBON_LIGHT, Enum.Material.Metal, Enum.PartType.Cylinder)
-		add(m.name .. "Bell", Vector3.new(0.26, 0.46, 0.46), at(0.26), ANODIZED, Enum.Material.Metal, Enum.PartType.Cylinder)
-		add(m.name .. "Cap", Vector3.new(0.05, 0.22, 0.22), at(0.415), SILVER, Enum.Material.Metal, Enum.PartType.Cylinder)
-		add(m.name .. "Foot", Vector3.new(0.35, 0.16, 0.16), at(-0.225), CARBON, Enum.Material.Rubber, Enum.PartType.Cylinder)
+		add(
+			m.name .. "Stator",
+			Vector3.new(0.08, 0.5, 0.5),
+			at(0.09),
+			CARBON_LIGHT,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add(
+			m.name .. "Bell",
+			Vector3.new(0.26, 0.46, 0.46),
+			at(0.26),
+			ANODIZED,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add(
+			m.name .. "Cap",
+			Vector3.new(0.05, 0.22, 0.22),
+			at(0.415),
+			SILVER,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add(
+			m.name .. "Foot",
+			Vector3.new(0.35, 0.16, 0.16),
+			at(-0.225),
+			CARBON,
+			Enum.Material.Rubber,
+			Enum.PartType.Cylinder
+		)
 
 		-- Tri-blade prop on a Motor6D so the client can spin it through Transform
 		local hubPos = motorPos + Vector3.new(0, 0.49, 0)
-		local hub = newPart(model, m.name .. "Hub", Vector3.new(0.1, 0.18, 0.18), at(0.49), SILVER, Enum.Material.Metal, Enum.PartType.Cylinder)
+		local hub = newPart(
+			model,
+			m.name .. "Hub",
+			Vector3.new(0.1, 0.18, 0.18),
+			at(0.49),
+			SILVER,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
 		for i = 0, 2 do
 			local bladeCf = CFrame.new(hubPos)
 				* CFrame.Angles(0, i * math.pi * 2 / 3, 0)
@@ -137,7 +192,14 @@ function DroneBuilder.build(): Model
 		joint.Parent = root
 
 		-- Motion-blur disc, faded in by the client as the prop spins up
-		local disc = add(m.name .. "Disc", Vector3.new(0.02, PROP_RADIUS * 2, PROP_RADIUS * 2), at(0.5), Color3.fromRGB(205, 245, 255), nil, Enum.PartType.Cylinder)
+		local disc = add(
+			m.name .. "Disc",
+			Vector3.new(0.02, PROP_RADIUS * 2, PROP_RADIUS * 2),
+			at(0.5),
+			Color3.fromRGB(205, 245, 255),
+			nil,
+			Enum.PartType.Cylinder
+		)
 		disc.Transparency = 1
 		disc.CastShadow = false
 	end
@@ -148,8 +210,22 @@ function DroneBuilder.build(): Model
 	end
 	local camCf = CFrame.new(0, 0.03, -0.94) * CFrame.Angles(CAMERA_UPTILT, 0, 0)
 	add("CameraBody", Vector3.new(0.44, 0.38, 0.38), camCf, CARBON)
-	add("CameraLensRing", Vector3.new(0.05, 0.34, 0.34), camCf * CFrame.new(0, 0, -0.2) * FORWARD, ACCENT, Enum.Material.Neon, Enum.PartType.Cylinder)
-	local lens = add("CameraLens", Vector3.new(0.12, 0.28, 0.28), camCf * CFrame.new(0, 0, -0.24) * FORWARD, Color3.fromRGB(8, 10, 14), Enum.Material.Glass, Enum.PartType.Cylinder)
+	add(
+		"CameraLensRing",
+		Vector3.new(0.05, 0.34, 0.34),
+		camCf * CFrame.new(0, 0, -0.2) * FORWARD,
+		ACCENT,
+		Enum.Material.Neon,
+		Enum.PartType.Cylinder
+	)
+	local lens = add(
+		"CameraLens",
+		Vector3.new(0.12, 0.28, 0.28),
+		camCf * CFrame.new(0, 0, -0.24) * FORWARD,
+		Color3.fromRGB(8, 10, 14),
+		Enum.Material.Glass,
+		Enum.PartType.Cylinder
+	)
 	lens.Reflectance = 0.35
 	attachment(root, "FpvCamera", camCf * CFrame.new(0, 0, -0.32))
 
@@ -162,23 +238,72 @@ function DroneBuilder.build(): Model
 	add("AntennaMount", Vector3.new(0.22, 0.1, 0.2), CFrame.new(0, 0.28, 0.8), CARBON_LIGHT)
 	local rake = Vector3.new(0, math.cos(math.rad(35)), math.sin(math.rad(35)))
 	local antennaBase = Vector3.new(0, 0.32, 0.84)
-	add("Antenna", Vector3.new(0.8, 0.05, 0.05), CFrame.fromMatrix(antennaBase + rake * 0.4, rake, Vector3.new(1, 0, 0)), CARBON, nil, Enum.PartType.Cylinder)
-	add("AntennaTip", Vector3.new(0.16, 0.16, 0.16), CFrame.new(antennaBase + rake * 0.82), ANODIZED, nil, Enum.PartType.Ball)
+	add(
+		"Antenna",
+		Vector3.new(0.8, 0.05, 0.05),
+		CFrame.fromMatrix(antennaBase + rake * 0.4, rake, Vector3.new(1, 0, 0)),
+		CARBON,
+		nil,
+		Enum.PartType.Cylinder
+	)
+	add(
+		"AntennaTip",
+		Vector3.new(0.16, 0.16, 0.16),
+		CFrame.new(antennaBase + rake * 0.82),
+		ANODIZED,
+		nil,
+		Enum.PartType.Ball
+	)
 
 	-- Rocket pods under the front arms, missile rails under the body. Launch points are
 	-- attachments the client reads when it fires; rail missiles carry a Rail index so the
 	-- client can hide them as they're spent.
 	for _, sx in { -1, 1 } do
 		local side = if sx < 0 then "Left" else "Right"
-		add("Pod", Vector3.new(1, 0.3, 0.3), CFrame.new(sx * 0.78, -0.3, -0.8) * FORWARD, CARBON_LIGHT, Enum.Material.Metal, Enum.PartType.Cylinder)
-		add("PodRing", Vector3.new(0.06, 0.32, 0.32), CFrame.new(sx * 0.78, -0.3, -1.28) * FORWARD, ANODIZED, Enum.Material.Metal, Enum.PartType.Cylinder)
-		add("PodFace", Vector3.new(0.02, 0.24, 0.24), CFrame.new(sx * 0.78, -0.3, -1.31) * FORWARD, Color3.fromRGB(10, 10, 12), nil, Enum.PartType.Cylinder)
+		add(
+			"Pod",
+			Vector3.new(1, 0.3, 0.3),
+			CFrame.new(sx * 0.78, -0.3, -0.8) * FORWARD,
+			CARBON_LIGHT,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add(
+			"PodRing",
+			Vector3.new(0.06, 0.32, 0.32),
+			CFrame.new(sx * 0.78, -0.3, -1.28) * FORWARD,
+			ANODIZED,
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		add(
+			"PodFace",
+			Vector3.new(0.02, 0.24, 0.24),
+			CFrame.new(sx * 0.78, -0.3, -1.31) * FORWARD,
+			Color3.fromRGB(10, 10, 12),
+			nil,
+			Enum.PartType.Cylinder
+		)
 		attachment(root, "Pod" .. side, CFrame.new(sx * 0.78, -0.3, -1.35))
 
 		add("Rail", Vector3.new(0.08, 0.06, 1.2), CFrame.new(sx * 0.4, -0.21, 0.05), CARBON_LIGHT, Enum.Material.Metal)
 		local rail = if sx < 0 then 1 else 2
-		local body = add("RailMissile", Vector3.new(1.3, 0.16, 0.16), CFrame.new(sx * 0.4, -0.32, 0.05) * FORWARD, Color3.fromRGB(232, 232, 236), nil, Enum.PartType.Cylinder)
-		local nose = add("RailMissileNose", Vector3.new(0.16, 0.16, 0.16), CFrame.new(sx * 0.4, -0.32, -0.6), ANODIZED, nil, Enum.PartType.Ball)
+		local body = add(
+			"RailMissile",
+			Vector3.new(1.3, 0.16, 0.16),
+			CFrame.new(sx * 0.4, -0.32, 0.05) * FORWARD,
+			Color3.fromRGB(232, 232, 236),
+			nil,
+			Enum.PartType.Cylinder
+		)
+		local nose = add(
+			"RailMissileNose",
+			Vector3.new(0.16, 0.16, 0.16),
+			CFrame.new(sx * 0.4, -0.32, -0.6),
+			ANODIZED,
+			nil,
+			Enum.PartType.Ball
+		)
 		local fin = add("RailMissileFin", Vector3.new(0.3, 0.02, 0.2), CFrame.new(sx * 0.4, -0.32, 0.62), CARBON)
 		for _, p in { body, nose, fin } do
 			p:SetAttribute("Rail", rail)
@@ -209,7 +334,8 @@ function DroneBuilder.build(): Model
 			trail.LightEmission = 1
 			trail.LightInfluence = 0
 			trail.Color = ColorSequence.new(ACCENT, Color3.fromRGB(190, 250, 255))
-			trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 1) })
+			trail.Transparency =
+				NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 1) })
 			trail.Enabled = false
 			trail.Parent = root
 		end

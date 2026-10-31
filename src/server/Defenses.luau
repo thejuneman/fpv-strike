@@ -48,7 +48,9 @@ local function update(site: Model, drones: Folder, now: number)
 			local drone = child :: Model
 			if canSee(eye, drone) then
 				-- Hold an existing lock rather than flicking between drones.
-				local dist = if drone == state.lock then 0 else ((drone.PrimaryPart :: BasePart).Position - eye).Magnitude
+				local dist = if drone == state.lock
+					then 0
+					else ((drone.PrimaryPart :: BasePart).Position - eye).Magnitude
 				if dist < bestDist then
 					best, bestDist = drone, dist
 				end

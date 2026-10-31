@@ -1,7 +1,7 @@
 --!strict
 -- The range, matching the reference clip: Roblox's default grey baseplate with a studded
 -- classic-brick house to fly through, plus the launch pad and the pilot's spot.
--- build() returns the CFrame drones spawn at.
+-- build() returns the CFrames drones spawn at, one per launch pad.
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -59,7 +59,17 @@ end
 -- and it runs `thickness` further inward (-Z); `margin` trims both ends so layers meet flush at
 -- the corners. Cuts the wall on every hole edge and lays each solid cell in bricks.
 -- ponytail: a part per brick; split cells only when a blast reaches them if part count bites.
-local function wall(origin: CFrame, width: number, height: number, holes: { Hole }, color: Color3, inset: number, thickness: number, margin: number, props: Props?)
+local function wall(
+	origin: CFrame,
+	width: number,
+	height: number,
+	holes: { Hole },
+	color: Color3,
+	inset: number,
+	thickness: number,
+	margin: number,
+	props: Props?
+)
 	local xs, ys = { margin, width - margin }, { 0, height }
 	for _, h in holes do
 		table.insert(xs, h[1])
@@ -89,7 +99,12 @@ local function wall(origin: CFrame, width: number, height: number, holes: { Hole
 					local bw, bh = (x1 - x0) / nx, (y1 - y0) / ny
 					for bx = 0, nx - 1 do
 						for by = 0, ny - 1 do
-							local cf = origin * CFrame.new(x0 + (bx + 0.5) * bw - width / 2, y0 + (by + 0.5) * bh, -inset - thickness / 2)
+							local cf = origin
+								* CFrame.new(
+									x0 + (bx + 0.5) * bw - width / 2,
+									y0 + (by + 0.5) * bh,
+									-inset - thickness / 2
+								)
 							local brick = block(Vector3.new(bw, bh, thickness), cf, color, props)
 							brick:SetAttribute("Home", cf)
 							CollectionService:AddTag(brick, "Breakable")
@@ -131,10 +146,30 @@ local function house(base: CFrame)
 	-- Walls: cream studded outside, blue inside. Front/back run full width; the sides fit between.
 	local sideWidth = D - 3
 	local walls: { { cf: CFrame, width: number, holes: { Hole }, doors: { boolean } } } = {
-		{ cf = floor * CFrame.new(0, 0, D / 2), width = W, holes = { { 7, 5, 9, 7 }, { 26, 0, 9, 12 } }, doors = { false, true } },
-		{ cf = floor * CFrame.new(0, 0, -D / 2) * CFrame.Angles(0, math.pi, 0), width = W, holes = { { 8, 5, 10, 7 }, { 27, 0, 9, 12 } }, doors = { false, true } },
-		{ cf = floor * CFrame.new(-W / 2, 0, 0) * CFrame.Angles(0, -math.pi / 2, 0), width = sideWidth, holes = { { sideWidth / 2 - 5, 5, 10, 7 } }, doors = { false } },
-		{ cf = floor * CFrame.new(W / 2, 0, 0) * CFrame.Angles(0, math.pi / 2, 0), width = sideWidth, holes = { { sideWidth / 2 - 5, 5, 10, 7 } }, doors = { false } },
+		{
+			cf = floor * CFrame.new(0, 0, D / 2),
+			width = W,
+			holes = { { 7, 5, 9, 7 }, { 26, 0, 9, 12 } },
+			doors = { false, true },
+		},
+		{
+			cf = floor * CFrame.new(0, 0, -D / 2) * CFrame.Angles(0, math.pi, 0),
+			width = W,
+			holes = { { 8, 5, 10, 7 }, { 27, 0, 9, 12 } },
+			doors = { false, true },
+		},
+		{
+			cf = floor * CFrame.new(-W / 2, 0, 0) * CFrame.Angles(0, -math.pi / 2, 0),
+			width = sideWidth,
+			holes = { { sideWidth / 2 - 5, 5, 10, 7 } },
+			doors = { false },
+		},
+		{
+			cf = floor * CFrame.new(W / 2, 0, 0) * CFrame.Angles(0, math.pi / 2, 0),
+			width = sideWidth,
+			holes = { { sideWidth / 2 - 5, 5, 10, 7 } },
+			doors = { false },
+		},
 	}
 	for _, w in walls do
 		local inner = if w.width == W then 1.5 else 0
@@ -179,14 +214,23 @@ local function house(base: CFrame)
 	block(Vector3.new(11, 3.5, 1), floor * CFrame.new(-10, 2.6, -D / 2 + 2), Color3.fromRGB(70, 104, 166))
 	block(Vector3.new(9, 10, 2), floor * CFrame.new(W / 2 - 7, 5.4, -D / 2 + 2.5), TIMBER, STUDDED_TOP)
 	for shelf = 1, 3 do
-		block(Vector3.new(8, 1.6, 1.2), floor * CFrame.new(W / 2 - 7, 0.4 + shelf * 2.7, -D / 2 + 3.2), Color3.fromHSV(shelf * 0.27 % 1, 0.6, 0.75))
+		block(
+			Vector3.new(8, 1.6, 1.2),
+			floor * CFrame.new(W / 2 - 7, 0.4 + shelf * 2.7, -D / 2 + 3.2),
+			Color3.fromHSV(shelf * 0.27 % 1, 0.6, 0.75)
+		)
 	end
 	for _, roomX in { -8, 14 } do
-		local lamp = block(Vector3.new(0.3, 3, 3), floor * CFrame.new(roomX, H - 0.55, 0) * VERTICAL, Color3.fromRGB(255, 240, 210), {
-			Shape = Enum.PartType.Cylinder,
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-		})
+		local lamp = block(
+			Vector3.new(0.3, 3, 3),
+			floor * CFrame.new(roomX, H - 0.55, 0) * VERTICAL,
+			Color3.fromRGB(255, 240, 210),
+			{
+				Shape = Enum.PartType.Cylinder,
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+			}
+		)
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 226, 190)
 		light.Range = 30
@@ -199,13 +243,23 @@ local function house(base: CFrame)
 	local doorX = 26 + 4.5 - W / 2
 	block(Vector3.new(7, 0.3, 14), base * CFrame.new(doorX, 0.15, D / 2 + 4 + 7), STONE, STUDDED_TOP)
 	for _, side in { -1, 1 } do
-		block(Vector3.one * 5, base * CFrame.new(doorX + side * 7, 3.2, D / 2 + 2.4), Color3.fromRGB(58, 125, 62), { Shape = Enum.PartType.Ball })
+		block(
+			Vector3.one * 5,
+			base * CFrame.new(doorX + side * 7, 3.2, D / 2 + 2.4),
+			Color3.fromRGB(58, 125, 62),
+			{ Shape = Enum.PartType.Ball }
+		)
 	end
 end
 
 local function baseplate()
 	-- Same as Studio's default Baseplate template, so the range matches the reference clip.
-	local plate = block(Vector3.new(2048, 16, 2048), CFrame.new(0, -8, 0), Color3.fromRGB(91, 91, 91), { Name = "Baseplate", Locked = true })
+	local plate = block(
+		Vector3.new(2048, 16, 2048),
+		CFrame.new(0, -8, 0),
+		Color3.fromRGB(91, 91, 91),
+		{ Name = "Baseplate", Locked = true }
+	)
 	local grid = Instance.new("Texture")
 	grid.Texture = "rbxassetid://6372755229"
 	grid.Face = Enum.NormalId.Top
@@ -216,7 +270,7 @@ local function baseplate()
 	grid.Parent = plate
 end
 
-function World.build(): CFrame
+function World.build(): { CFrame }
 	for _, name in { "Baseplate", "SpawnLocation" } do
 		local default = workspace:FindFirstChild(name)
 		if default then
@@ -228,9 +282,27 @@ function World.build(): CFrame
 
 	baseplate()
 
-	-- Launch pad and the pilot's spot behind it
-	block(Vector3.new(0.3, 17.2, 17.2), CFrame.new(0, 0.14, 0) * VERTICAL, ACCENT, { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon })
-	block(Vector3.new(0.3, 16, 16), CFrame.new(0, 0.15, 0) * VERTICAL, Color3.fromRGB(40, 42, 48), { Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal })
+	-- Launch pads, one drone each (the big one first), and the pilot's spot behind them
+	local spawns = {}
+	for i, at in
+		{ Vector3.zero, Vector3.new(-20, 0, 4), Vector3.new(20, 0, 4), Vector3.new(-36, 0, 8), Vector3.new(36, 0, 8) }
+	do
+		local size = if i == 1 then 16 else 10
+		local pad = CFrame.new(at) * VERTICAL
+		block(
+			Vector3.new(0.3, size + 1.2, size + 1.2),
+			pad + Vector3.new(0, 0.14, 0),
+			ACCENT,
+			{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon }
+		)
+		block(
+			Vector3.new(0.3, size, size),
+			pad + Vector3.new(0, 0.15, 0),
+			Color3.fromRGB(40, 42, 48),
+			{ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal }
+		)
+		table.insert(spawns, CFrame.new(at + Vector3.new(0, 0.85, 0)))
+	end
 	local pilot = Instance.new("SpawnLocation")
 	pilot.Name = "PilotSpawn"
 	pilot.Anchored = true
@@ -245,7 +317,7 @@ function World.build(): CFrame
 	house(CFrame.new(0, 0, -90))
 
 	folder.Parent = workspace
-	return CFrame.new(0, 0.85, 0)
+	return spawns
 end
 
 return World

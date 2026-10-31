@@ -87,7 +87,14 @@ function Settings.new(toggles: { Toggle })
 	}, gui)
 	round(panel, 8)
 	make("UIStroke", { Color = ACCENT, Transparency = 0.6 }, panel)
-	text(panel, { Position = UDim2.fromOffset(24, 18), Size = UDim2.fromOffset(300, 22), Text = "SETTINGS", FontFace = BOLD, TextSize = 18, TextColor3 = ACCENT })
+	text(panel, {
+		Position = UDim2.fromOffset(24, 18),
+		Size = UDim2.fromOffset(300, 22),
+		Text = "SETTINGS",
+		FontFace = BOLD,
+		TextSize = 18,
+		TextColor3 = ACCENT,
+	})
 	text(panel, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -24, 0, 21),
@@ -101,37 +108,75 @@ function Settings.new(toggles: { Toggle })
 	self.sliders = {}
 	local dragging = nil
 	for i, def in SLIDERS do
-		local row = make("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(24, 58 + (i - 1) * 46), Size = UDim2.fromOffset(300, 40) }, panel)
+		local row = make("Frame", {
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(24, 58 + (i - 1) * 46),
+			Size = UDim2.fromOffset(300, 40),
+		}, panel)
 		text(row, { Size = UDim2.new(1, 0, 0, 16), Text = def[1] })
-		local value = text(row, { Size = UDim2.new(1, 0, 0, 16), TextXAlignment = Enum.TextXAlignment.Right, FontFace = BOLD, TextColor3 = ACCENT })
-		local track = make("Frame", { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = TRACK, BorderSizePixel = 0, Active = true }, row)
+		local value = text(row, {
+			Size = UDim2.new(1, 0, 0, 16),
+			TextXAlignment = Enum.TextXAlignment.Right,
+			FontFace = BOLD,
+			TextColor3 = ACCENT,
+		})
+		local track = make("Frame", {
+			Position = UDim2.fromOffset(0, 24),
+			Size = UDim2.new(1, 0, 0, 6),
+			BackgroundColor3 = TRACK,
+			BorderSizePixel = 0,
+			Active = true,
+		}, row)
 		round(track, 3)
-		local fill = make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, track)
+		local fill =
+			make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, track)
 		round(fill, 3)
-		local knob = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(14, 14), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, track)
+		local knob = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0, 0.5),
+			Size = UDim2.fromOffset(14, 14),
+			BackgroundColor3 = WHITE,
+			BorderSizePixel = 0,
+		}, track)
 		round(knob, 7)
 		local slider = { def = def, value = value, track = track, fill = fill, knob = knob }
 		table.insert(self.sliders, slider)
 		track.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
 				dragging = slider
 				self:_drag(slider, input.Position.X)
 			end
 		end)
 	end
 	UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		if
+			dragging
+			and (
+				input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch
+			)
+		then
 			self:_drag(dragging, input.Position.X)
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
 			dragging = nil
 		end
 	end)
 
 	-- Rate curve, right column: roll/pitch rate against stick deflection.
-	text(panel, { Position = UDim2.fromOffset(360, 58), Size = UDim2.fromOffset(260, 16), Text = "ACRO RATE CURVE (roll / pitch)" })
+	text(panel, {
+		Position = UDim2.fromOffset(360, 58),
+		Size = UDim2.fromOffset(260, 16),
+		Text = "ACRO RATE CURVE (roll / pitch)",
+	})
 	local graph = make("Frame", {
 		Position = UDim2.fromOffset(366, 84),
 		Size = UDim2.fromOffset(GRAPH.X, GRAPH.Y),
@@ -141,15 +186,42 @@ function Settings.new(toggles: { Toggle })
 	}, panel)
 	for _, rate in { 400, 800 } do
 		local y = GRAPH.Y - rate / GRAPH_TOP * GRAPH.Y
-		make("Frame", { Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = TRACK, BorderSizePixel = 0 }, graph)
-		text(graph, { Position = UDim2.fromOffset(4, y - 14), Size = UDim2.fromOffset(60, 12), Text = `{rate}°/s`, TextSize = 10, TextColor3 = DIM })
+		make("Frame", {
+			Position = UDim2.fromOffset(0, y),
+			Size = UDim2.new(1, 0, 0, 1),
+			BackgroundColor3 = TRACK,
+			BorderSizePixel = 0,
+		}, graph)
+		text(graph, {
+			Position = UDim2.fromOffset(4, y - 14),
+			Size = UDim2.fromOffset(60, 12),
+			Text = `{rate}°/s`,
+			TextSize = 10,
+			TextColor3 = DIM,
+		})
 	end
-	text(panel, { Position = UDim2.fromOffset(366, 84 + GRAPH.Y + 2), Size = UDim2.fromOffset(GRAPH.X, 14), Text = "stick →", TextSize = 11, TextColor3 = DIM, TextXAlignment = Enum.TextXAlignment.Right })
+	text(panel, {
+		Position = UDim2.fromOffset(366, 84 + GRAPH.Y + 2),
+		Size = UDim2.fromOffset(GRAPH.X, 14),
+		Text = "stick →",
+		TextSize = 11,
+		TextColor3 = DIM,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	})
 	self.segments = {}
 	for i = 1, SEGMENTS do
-		self.segments[i] = make("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = ACCENT, BorderSizePixel = 0 }, graph)
+		self.segments[i] = make(
+			"Frame",
+			{ AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = ACCENT, BorderSizePixel = 0 },
+			graph
+		)
 	end
-	self.curveNote = text(panel, { Position = UDim2.fromOffset(366, 84 + GRAPH.Y + 18), Size = UDim2.fromOffset(GRAPH.X, 16), TextColor3 = DIM, TextSize = 12 })
+	self.curveNote = text(panel, {
+		Position = UDim2.fromOffset(366, 84 + GRAPH.Y + 18),
+		Size = UDim2.fromOffset(GRAPH.X, 16),
+		TextColor3 = DIM,
+		TextSize = 12,
+	})
 
 	-- Toggles under the graph
 	self.buttons = {}
