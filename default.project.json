@@ -1,0 +1,62 @@
+{
+  "name": "fpv-strike",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$properties": { "StreamingEnabled": false }
+    },
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" },
+      "Remotes": {
+        "$className": "Folder",
+        "FireWeapon": { "$className": "RemoteEvent" },
+        "Missiles": { "$className": "RemoteEvent" }
+      }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "$properties": { "EnableMouseLockOption": false },
+      "StarterPlayerScripts": {
+        "Client": { "$path": "src/client" }
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 16.6,
+        "GeographicLatitude": 35,
+        "Brightness": 3,
+        "Ambient": [0.27, 0.27, 0.3],
+        "OutdoorAmbient": [0.5, 0.5, 0.55],
+        "EnvironmentDiffuseScale": 1,
+        "EnvironmentSpecularScale": 1,
+        "ShadowSoftness": 0.15
+      },
+      "Atmosphere": {
+        "$className": "Atmosphere",
+        "$properties": {
+          "Density": 0.3,
+          "Offset": 0.25,
+          "Color": [0.78, 0.82, 0.9],
+          "Decay": [0.42, 0.45, 0.55],
+          "Glare": 0.15,
+          "Haze": 1.4
+        }
+      },
+      "Bloom": {
+        "$className": "BloomEffect",
+        "$properties": { "Intensity": 0.6, "Size": 28, "Threshold": 1.4 }
+      },
+      "ColorCorrection": {
+        "$className": "ColorCorrectionEffect",
+        "$properties": { "Contrast": 0.08, "Saturation": 0.06, "TintColor": [1, 0.98, 0.95] }
+      },
+      "SunRays": {
+        "$className": "SunRaysEffect",
+        "$properties": { "Intensity": 0.04, "Spread": 0.7 }
+      }
+    }
+  }
+}
